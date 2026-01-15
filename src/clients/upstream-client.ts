@@ -33,7 +33,8 @@ interface TokenListResponse {
   success: boolean;
   data:
     | {
-        data: UpstreamToken[];
+        data?: UpstreamToken[];
+        items?: UpstreamToken[];
       }
     | UpstreamToken[];
 }
@@ -157,10 +158,10 @@ export class UpstreamClient {
       throw new Error(`Token list API returned success: false`);
     }
 
-    // Handle both response formats (paginated or direct array)
+    // Handle multiple response formats (paginated with items/data or direct array)
     const tokens = Array.isArray(data.data)
       ? data.data
-      : data.data?.data ?? [];
+      : data.data?.items ?? data.data?.data ?? [];
 
     return tokens;
   }

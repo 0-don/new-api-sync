@@ -50,8 +50,6 @@ export async function sync(config: Config): Promise<SyncReport> {
     provider: string;
   }> = [];
 
-  const tokenPrefix = config.options?.tokenNamePrefix ?? "proxy-sync";
-
   logInfo("=".repeat(60));
   logInfo("Starting sync...");
   logInfo("=".repeat(60));
@@ -92,8 +90,8 @@ export async function sync(config: Config): Promise<SyncReport> {
         groups = pricing.groups;
       }
 
-      // Ensure tokens exist on upstream
-      const tokenResult = await upstream.ensureTokens(groups, tokenPrefix);
+      // Ensure tokens exist on upstream (use provider name as prefix for consistency with channel names)
+      const tokenResult = await upstream.ensureTokens(groups, providerConfig.name);
       providerReport.tokens = {
         created: tokenResult.created,
         existing: tokenResult.existing,
@@ -272,7 +270,7 @@ export async function sync(config: Config): Promise<SyncReport> {
     } else {
       // Create new channel
       const id = await target.createChannel(channelData);
-      if (id) {
+      if (id !== null) {
         report.channels.created++;
       } else {
         report.errors.push({

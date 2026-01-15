@@ -16,7 +16,8 @@ interface ChannelListResponse {
   success: boolean;
   data:
     | {
-        data: Channel[];
+        data?: Channel[];
+        items?: Channel[];
       }
     | Channel[];
 }
@@ -116,25 +117,42 @@ export class TargetClient {
       throw new Error("Channel list API returned success: false");
     }
 
-    // Handle both response formats
+    // Handle multiple response formats (paginated with items/data or direct array)
     const channels = Array.isArray(data.data)
       ? data.data
-      : data.data?.data ?? [];
+      : data.data?.items ?? data.data?.data ?? [];
 
     return channels;
   }
 
   /**
    * Create a new channel
+   * Supports both old format (direct channel) and new format (wrapped in mode+channel)
    */
   async createChannel(channel: Omit<Channel, "id">): Promise<number | null> {
     logDebug(`Creating channel: ${channel.name}`);
 
-    const response = await fetch(`${this.config.url}/api/channel/`, {
+    // Try new API format first (wrapped in mode+channel)
+    const newFormatBody = {
+      mode: "single",
+      channel: channel,
+    };
+
+    let response = await fetch(`${this.config.url}/api/channel/`, {
       method: "POST",
       headers: this.headers,
-      body: JSON.stringify(channel),
+      body: JSON.stringify(newFormatBody),
     });
+
+    // If new format fails with 400/422, try old format (direct channel)
+    if (response.status === 400 || response.status === 422) {
+      logDebug(`New API format failed, trying old format for: ${channel.name}`);
+      response = await fetch(`${this.config.url}/api/channel/`, {
+        method: "POST",
+        headers: this.headers,
+        body: JSON.stringify(channel),
+      });
+    }
 
     if (!response.ok) {
       logError(`Failed to create channel ${channel.name}: ${response.status}`);
@@ -148,7 +166,8 @@ export class TargetClient {
     }
 
     logInfo(`Created channel: ${channel.name}`);
-    return data.data?.id ?? null;
+    // New API doesn't return ID, return 0 to indicate success
+    return data.data?.id ?? 0;
   }
 
   /**

@@ -7,7 +7,28 @@ export async function loadConfig(path: string): Promise<Config> {
     throw new Error(`Config file not found: ${path}`);
   }
 
-  return file.json();
+  return migrateConfig(await file.json());
+}
+
+function migrateConfig(raw: any): Config {
+  const target = raw.target ?? {};
+  const config: Config = {
+    target: {
+      url: target.url,
+      systemAccessToken: target.systemAccessToken ?? target.adminToken,
+      userId: target.userId,
+    },
+    providers: (raw.providers ?? []).map((p: any) => ({
+      name: p.name,
+      baseUrl: p.baseUrl,
+      systemAccessToken: p.systemAccessToken ?? p.accessToken ?? p.auth?.accessToken,
+      userId: p.userId ?? p.auth?.userId,
+      enabledGroups: p.enabledGroups,
+      priority: p.priority,
+    })),
+    options: raw.options,
+  };
+  return config;
 }
 
 export function validateConfig(config: Config): void {

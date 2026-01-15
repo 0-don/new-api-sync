@@ -28,7 +28,6 @@ export interface ProviderConfig {
 }
 
 export interface SyncOptions {
-  tokenNamePrefix?: string; // Default: "new-api-sync"
   deleteStaleChannels?: boolean; // Default: true
 }
 
