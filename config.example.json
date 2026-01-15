@@ -1,23 +1,18 @@
-
 {
   "target": {
-    "url": "https://ai-api.coding.global",
-    "adminToken": "${ADMIN_TOKEN}"
+    "url": "https://your-instance.example.com",
+    "adminToken": "sk-xxx"
   },
   "providers": [
     {
-      "name": "api",
-      "baseUrl": "https://api.com",
+      "name": "newapi",
+      "baseUrl": "https://www.newapi.ai",
       "auth": {
-        "accessToken": "${API_ACCESS_TOKEN}",
-        "userId": "${API_USER_ID}"
+        "accessToken": "your-access-token",
+        "userId": 123
       },
-      "enabledGroups": ["aws-q", "cc", "gemini", "antigravity"],
+      "enabledGroups": ["aws-q", "cc", "gemini"],
       "priority": 10
     }
-  ],
-  "options": {
-    "tokenNamePrefix": "ai-api-sync",
-    "deleteStaleChannels": true
-  }
+  ]
 }
