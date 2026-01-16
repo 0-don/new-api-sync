@@ -48,7 +48,7 @@ export async function sync(config: Config): Promise<SyncReport> {
       success: false,
       groups: 0,
       models: 0,
-      tokens: { created: 0, existing: 0 },
+      tokens: { created: 0, existing: 0, deleted: 0 },
     };
 
     try {
