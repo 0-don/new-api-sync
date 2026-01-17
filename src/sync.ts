@@ -232,11 +232,14 @@ export async function sync(config: Config): Promise<SyncReport> {
   if (config.options?.deleteStaleChannels !== false) {
     for (const channel of existingChannels) {
       if (desiredChannelNames.has(channel.name)) continue;
-      if (channel.tag && configuredProviders.has(channel.tag)) {
+      // Delete if: channel has a tag (managed by sync) AND either:
+      // 1. Tag matches a configured provider (stale channel from current provider)
+      // 2. Tag doesn't match any configured provider (orphan from removed provider)
+      if (channel.tag) {
         const success = await target.deleteChannel(channel.id!);
         if (success) {
           report.channels.deleted++;
-          logInfo(`Deleted stale channel: ${channel.name}`);
+          logInfo(`Deleted stale channel: ${channel.name} (tag: ${channel.tag})`);
         } else {
           report.errors.push({
             phase: "channels",
