@@ -53,6 +53,13 @@ export interface UpstreamPricing {
   groupRatios: Record<string, number>;
   modelRatios: Record<string, number>;
   completionRatios: Record<string, number>;
+  vendorIdToName: Record<number, string>;
+}
+
+export interface Vendor {
+  id: number;
+  name: string;
+  icon?: string;
 }
 
 export interface GroupInfo {

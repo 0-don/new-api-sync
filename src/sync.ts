@@ -1,17 +1,17 @@
+import { TargetClient } from "@/clients/target-client";
+import { UpstreamClient } from "@/clients/upstream-client";
+import { validateConfig } from "@/lib/config";
+import { logError, logInfo } from "@/lib/utils";
 import type {
+  Channel,
   Config,
-  SyncReport,
-  ProviderReport,
+  GroupInfo,
   MergedGroup,
   MergedModel,
-  Channel,
-  GroupInfo,
   ModelInfo,
+  ProviderReport,
+  SyncReport,
 } from "@/types";
-import { validateConfig } from "@/lib/config";
-import { UpstreamClient } from "@/clients/upstream-client";
-import { TargetClient } from "@/clients/target-client";
-import { logInfo, logError } from "@/lib/utils";
 
 export async function sync(config: Config): Promise<SyncReport> {
   const startTime = Date.now();
@@ -29,6 +29,7 @@ export async function sync(config: Config): Promise<SyncReport> {
   const mergedGroups: MergedGroup[] = [];
   const mergedModels = new Map<string, MergedModel>();
   const upstreamModels: ModelInfo[] = [];
+  const upstreamVendorIdToName: Record<number, string> = {};
   const channelsToCreate: Array<{
     name: string;
     type: number;
@@ -58,13 +59,16 @@ export async function sync(config: Config): Promise<SyncReport> {
       let groups: GroupInfo[];
       if (providerConfig.enabledGroups?.length) {
         groups = pricing.groups.filter((g) =>
-          providerConfig.enabledGroups!.includes(g.name)
+          providerConfig.enabledGroups!.includes(g.name),
         );
       } else {
         groups = pricing.groups;
       }
 
-      const tokenResult = await upstream.ensureTokens(groups, providerConfig.name);
+      const tokenResult = await upstream.ensureTokens(
+        groups,
+        providerConfig.name,
+      );
       providerReport.tokens = {
         created: tokenResult.created,
         existing: tokenResult.existing,
@@ -104,13 +108,19 @@ export async function sync(config: Config): Promise<SyncReport> {
         }
       }
 
+      Object.assign(upstreamVendorIdToName, pricing.vendorIdToName);
+
       providerReport.groups = groups.length;
       providerReport.models = pricing.models.length;
       providerReport.success = true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       providerReport.error = message;
-      report.errors.push({ provider: providerConfig.name, phase: "fetch", message });
+      report.errors.push({
+        provider: providerConfig.name,
+        phase: "fetch",
+        message,
+      });
       logError(`Provider ${providerConfig.name} failed: ${message}`);
     }
 
@@ -124,14 +134,24 @@ export async function sync(config: Config): Promise<SyncReport> {
     return report;
   }
 
-  const groupRatio = Object.fromEntries(mergedGroups.map((g) => [g.name, g.ratio]));
-  const autoGroups = [...mergedGroups].sort((a, b) => a.ratio - b.ratio).map((g) => g.name);
-  const usableGroups: Record<string, string> = { auto: "Auto (Smart Routing with Failover)" };
+  const groupRatio = Object.fromEntries(
+    mergedGroups.map((g) => [g.name, g.ratio]),
+  );
+  const autoGroups = [...mergedGroups]
+    .sort((a, b) => a.ratio - b.ratio)
+    .map((g) => g.name);
+  const usableGroups: Record<string, string> = {
+    auto: "Auto (Smart Routing with Failover)",
+  };
   for (const group of mergedGroups) {
     usableGroups[group.name] = group.description;
   }
-  const modelRatio = Object.fromEntries([...mergedModels.entries()].map(([k, v]) => [k, v.ratio]));
-  const completionRatio = Object.fromEntries([...mergedModels.entries()].map(([k, v]) => [k, v.completionRatio]));
+  const modelRatio = Object.fromEntries(
+    [...mergedModels.entries()].map(([k, v]) => [k, v.ratio]),
+  );
+  const completionRatio = Object.fromEntries(
+    [...mergedModels.entries()].map(([k, v]) => [k, v.completionRatio]),
+  );
 
   const target = new TargetClient(config.target);
 
@@ -146,7 +166,10 @@ export async function sync(config: Config): Promise<SyncReport> {
 
   report.options.updated = optionsResult.updated;
   for (const key of optionsResult.failed) {
-    report.errors.push({ phase: "options", message: `Failed to update option: ${key}` });
+    report.errors.push({
+      phase: "options",
+      message: `Failed to update option: ${key}`,
+    });
   }
 
   const existingChannels = await target.listChannels();
@@ -173,14 +196,20 @@ export async function sync(config: Config): Promise<SyncReport> {
       if (success) {
         report.channels.updated++;
       } else {
-        report.errors.push({ phase: "channels", message: `Failed to update channel: ${spec.name}` });
+        report.errors.push({
+          phase: "channels",
+          message: `Failed to update channel: ${spec.name}`,
+        });
       }
     } else {
       const id = await target.createChannel(channelData);
       if (id !== null) {
         report.channels.created++;
       } else {
-        report.errors.push({ phase: "channels", message: `Failed to create channel: ${spec.name}` });
+        report.errors.push({
+          phase: "channels",
+          message: `Failed to create channel: ${spec.name}`,
+        });
       }
     }
   }
@@ -195,7 +224,10 @@ export async function sync(config: Config): Promise<SyncReport> {
         if (success) {
           report.channels.deleted++;
         } else {
-          report.errors.push({ phase: "channels", message: `Failed to delete channel: ${channel.name}` });
+          report.errors.push({
+            phase: "channels",
+            message: `Failed to delete channel: ${channel.name}`,
+          });
         }
       }
     }
@@ -210,24 +242,54 @@ export async function sync(config: Config): Promise<SyncReport> {
     }
   }
 
+  const targetVendors = await target.listVendors();
+  const vendorNameToTargetId: Record<string, number> = {};
+  for (const v of targetVendors) {
+    vendorNameToTargetId[v.name.toLowerCase()] = v.id;
+  }
+
   let modelsCreated = 0;
   for (const modelName of modelsToSync) {
     if (!existingModelNames.has(modelName)) {
       const modelInfo = upstreamModels.find((m) => m.name === modelName);
+      const upstreamVendorName = modelInfo?.vendorId
+        ? upstreamVendorIdToName[modelInfo.vendorId]
+        : undefined;
+      const targetVendorId = upstreamVendorName
+        ? vendorNameToTargetId[upstreamVendorName.toLowerCase()]
+        : undefined;
+
       const success = await target.createModel({
         model_name: modelName,
-        vendor_id: modelInfo?.vendorId,
+        vendor_id: targetVendorId,
         status: 1,
         sync_official: 1,
       });
-      if (success) modelsCreated++;
+      if (success) {
+        modelsCreated++;
+        logInfo(
+          `Created model: ${modelName} (vendor: ${upstreamVendorName ?? "unknown"})`,
+        );
+      }
+    }
+  }
+
+  let modelsDeleted = 0;
+  for (const model of existingModels) {
+    if (model.sync_official === 1 && !modelsToSync.has(model.model_name)) {
+      if (model.id && (await target.deleteModel(model.id))) {
+        modelsDeleted++;
+        logInfo(`Deleted stale model: ${model.model_name}`);
+      }
     }
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
   report.success = report.errors.length === 0;
 
-  logInfo(`Done in ${elapsed}s | Providers: ${report.providers.filter((p) => p.success).length}/${report.providers.length} | Channels: +${report.channels.created} ~${report.channels.updated} -${report.channels.deleted} | Models: +${modelsCreated}`);
+  logInfo(
+    `Done in ${elapsed}s | Providers: ${report.providers.filter((p) => p.success).length}/${report.providers.length} | Channels: +${report.channels.created} ~${report.channels.updated} -${report.channels.deleted} | Models: +${modelsCreated} -${modelsDeleted}`,
+  );
 
   if (report.errors.length > 0) {
     for (const err of report.errors) {

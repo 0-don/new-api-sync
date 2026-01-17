@@ -1,5 +1,5 @@
 import { fetchPaginated, logInfo } from "@/lib/utils";
-import type { Channel, ModelMeta, TargetConfig } from "@/types";
+import type { Channel, ModelMeta, TargetConfig, Vendor } from "@/types";
 
 interface ApiResponse<T = unknown> {
   success: boolean;
@@ -134,7 +134,35 @@ export class TargetClient {
     });
     if (!response.ok) return false;
     const data = (await response.json()) as ApiResponse;
-    if (data.success) logInfo(`Created model: ${model.model_name}`);
     return data.success;
+  }
+
+  async deleteModel(id: number): Promise<boolean> {
+    const response = await fetch(`${this.config.url}/api/models/${id}`, {
+      method: "DELETE",
+      headers: this.headers,
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as ApiResponse;
+    return data.success;
+  }
+
+  async listVendors(): Promise<Vendor[]> {
+    const allVendors: Vendor[] = [];
+    let page = 1;
+    while (true) {
+      const response = await fetch(
+        `${this.config.url}/api/vendors/?page=${page}&page_size=100`,
+        { headers: this.headers },
+      );
+      if (!response.ok)
+        throw new Error(`Failed to list vendors: ${response.status}`);
+      const data = (await response.json()) as ApiResponse<{ items?: Vendor[] }>;
+      const vendors = data.data?.items ?? [];
+      allVendors.push(...vendors);
+      if (vendors.length < 100) break;
+      page++;
+    }
+    return allVendors;
   }
 }

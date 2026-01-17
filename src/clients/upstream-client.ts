@@ -1,5 +1,17 @@
 import { logInfo } from "@/lib/utils";
-import type { GroupInfo, ModelInfo, ProviderConfig, UpstreamPricing, UpstreamToken } from "@/types";
+import type {
+  GroupInfo,
+  ModelInfo,
+  ProviderConfig,
+  UpstreamPricing,
+  UpstreamToken,
+} from "@/types";
+
+interface VendorInfo {
+  id: number;
+  name: string;
+  icon?: string;
+}
 
 interface PricingResponse {
   success: boolean;
@@ -15,6 +27,7 @@ interface PricingResponse {
   }>;
   group_ratio: Record<string, number>;
   usable_group: Record<string, string>;
+  vendors?: VendorInfo[];
 }
 
 interface TokenListResponse {
@@ -51,7 +64,8 @@ export class UpstreamClient {
 
   async fetchPricing(): Promise<UpstreamPricing> {
     const response = await fetch(`${this.baseUrl}/api/pricing`);
-    if (!response.ok) throw new Error(`Failed to fetch pricing: ${response.status}`);
+    if (!response.ok)
+      throw new Error(`Failed to fetch pricing: ${response.status}`);
     const data = (await response.json()) as PricingResponse;
     if (!data.success) throw new Error("Pricing API returned success: false");
 
@@ -77,7 +91,9 @@ export class UpstreamClient {
         description,
         ratio: data.group_ratio[name] ?? 1,
         models: Array.from(groupModels.get(name) ?? []),
-        channelType: inferChannelType(Array.from(groupEndpoints.get(name) ?? [])),
+        channelType: inferChannelType(
+          Array.from(groupEndpoints.get(name) ?? []),
+        ),
       }));
 
     const models: ModelInfo[] = data.data.map((m) => ({
@@ -92,23 +108,47 @@ export class UpstreamClient {
     const completionRatios: Record<string, number> = {};
     for (const m of data.data) {
       if (m.model_ratio > 0) modelRatios[m.model_name] = m.model_ratio;
-      if (m.completion_ratio > 0) completionRatios[m.model_name] = m.completion_ratio;
+      if (m.completion_ratio > 0)
+        completionRatios[m.model_name] = m.completion_ratio;
     }
 
-    logInfo(`[${this.provider.name}] ${groups.length} groups, ${models.length} models`);
+    const vendorIdToName: Record<number, string> = {};
+    if (data.vendors) {
+      for (const v of data.vendors) {
+        vendorIdToName[v.id] = v.name;
+      }
+    }
 
-    return { groups, models, groupRatios: data.group_ratio, modelRatios, completionRatios };
+    logInfo(
+      `[${this.provider.name}] ${groups.length} groups, ${models.length} models`,
+    );
+
+    return {
+      groups,
+      models,
+      groupRatios: data.group_ratio,
+      modelRatios,
+      completionRatios,
+      vendorIdToName,
+    };
   }
 
   async listTokens(): Promise<UpstreamToken[]> {
     const allTokens: UpstreamToken[] = [];
     let page = 0;
     while (true) {
-      const response = await fetch(`${this.baseUrl}/api/token/?p=${page}&page_size=100`, { headers: this.headers });
-      if (!response.ok) throw new Error(`Failed to list tokens: ${response.status}`);
+      const response = await fetch(
+        `${this.baseUrl}/api/token/?p=${page}&page_size=100`,
+        { headers: this.headers },
+      );
+      if (!response.ok)
+        throw new Error(`Failed to list tokens: ${response.status}`);
       const data = (await response.json()) as TokenListResponse;
-      if (!data.success) throw new Error("Token list API returned success: false");
-      const tokens = Array.isArray(data.data) ? data.data : (data.data?.items ?? data.data?.data ?? []);
+      if (!data.success)
+        throw new Error("Token list API returned success: false");
+      const tokens = Array.isArray(data.data)
+        ? data.data
+        : (data.data?.items ?? data.data?.data ?? []);
       allTokens.push(...tokens);
       if (tokens.length < 100) break;
       page++;
@@ -120,16 +160,37 @@ export class UpstreamClient {
     const response = await fetch(`${this.baseUrl}/api/token/`, {
       method: "POST",
       headers: this.headers,
-      body: JSON.stringify({ name, group, expired_time: -1, unlimited_quota: true, model_limits_enabled: false }),
+      body: JSON.stringify({
+        name,
+        group,
+        expired_time: -1,
+        unlimited_quota: true,
+        model_limits_enabled: false,
+      }),
     });
-    if (!response.ok) throw new Error(`Failed to create token: ${response.status}`);
-    const data = (await response.json()) as { success: boolean; message?: string };
-    if (!data.success) throw new Error(`Token create failed: ${data.message ?? "unknown"}`);
+    if (!response.ok)
+      throw new Error(`Failed to create token: ${response.status}`);
+    const data = (await response.json()) as {
+      success: boolean;
+      message?: string;
+    };
+    if (!data.success)
+      throw new Error(`Token create failed: ${data.message ?? "unknown"}`);
   }
 
-  async ensureTokens(groups: GroupInfo[], prefix: string): Promise<{ tokens: Record<string, string>; created: number; existing: number; deleted: number }> {
+  async ensureTokens(
+    groups: GroupInfo[],
+    prefix: string,
+  ): Promise<{
+    tokens: Record<string, string>;
+    created: number;
+    existing: number;
+    deleted: number;
+  }> {
     const result: Record<string, string> = {};
-    let created = 0, existing = 0, deleted = 0;
+    let created = 0,
+      existing = 0,
+      deleted = 0;
 
     const existingTokens = await this.listTokens();
     const tokensByName = new Map(existingTokens.map((t) => [t.name, t]));
@@ -149,15 +210,20 @@ export class UpstreamClient {
       const existingToken = tokensByName.get(tokenName);
 
       if (existingToken) {
-        result[group.name] = existingToken.key.startsWith("sk-") ? existingToken.key : `sk-${existingToken.key}`;
+        result[group.name] = existingToken.key.startsWith("sk-")
+          ? existingToken.key
+          : `sk-${existingToken.key}`;
         existing++;
       } else {
         await this.createToken(tokenName, group.name);
         created++;
         const updatedTokens = await this.listTokens();
         const newToken = updatedTokens.find((t) => t.name === tokenName);
-        if (!newToken) throw new Error(`Token ${tokenName} created but not found`);
-        result[group.name] = newToken.key.startsWith("sk-") ? newToken.key : `sk-${newToken.key}`;
+        if (!newToken)
+          throw new Error(`Token ${tokenName} created but not found`);
+        result[group.name] = newToken.key.startsWith("sk-")
+          ? newToken.key
+          : `sk-${newToken.key}`;
         logInfo(`[${this.provider.name}] Created token: ${tokenName}`);
       }
     }
@@ -166,7 +232,10 @@ export class UpstreamClient {
   }
 
   async deleteToken(id: number): Promise<boolean> {
-    const response = await fetch(`${this.baseUrl}/api/token/${id}`, { method: "DELETE", headers: this.headers });
+    const response = await fetch(`${this.baseUrl}/api/token/${id}`, {
+      method: "DELETE",
+      headers: this.headers,
+    });
     if (!response.ok) return false;
     const data = (await response.json()) as { success: boolean };
     return data.success;

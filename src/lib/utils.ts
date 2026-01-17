@@ -6,10 +6,13 @@ export function logError(message: string) {
   console.log(`${new Date().toISOString()} [ERROR] ${message}`);
 }
 
-export async function fetchPaginated<T, D extends { success: boolean } = { success: boolean }>(
+export async function fetchPaginated<
+  T,
+  D extends { success: boolean } = { success: boolean },
+>(
   url: string,
   headers: Record<string, string>,
-  extractItems: (data: D) => T[]
+  extractItems: (data: D) => T[],
 ): Promise<T[]> {
   const all: T[] = [];
   let page = 0;
