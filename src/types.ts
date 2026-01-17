@@ -17,6 +17,7 @@ export interface ProviderConfig {
   userId: number;
   enabledGroups?: string[];
   priority?: number;
+  priceMultiplier?: number;
 }
 
 export interface SyncOptions {

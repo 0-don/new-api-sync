@@ -22,6 +22,7 @@ function migrateConfig(raw: any): Config {
       userId: p.userId ?? p.auth?.userId,
       enabledGroups: p.enabledGroups,
       priority: p.priority,
+      priceMultiplier: p.priceMultiplier,
     })),
     options: raw.options,
   };

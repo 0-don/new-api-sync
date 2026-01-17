@@ -98,11 +98,19 @@ export async function sync(config: Config): Promise<SyncReport> {
       }
 
       for (const model of pricing.models) {
+        let ratio = model.ratio;
+        let completionRatio = model.completionRatio;
+
+        if (providerConfig.priceMultiplier) {
+          ratio *= providerConfig.priceMultiplier;
+          completionRatio *= providerConfig.priceMultiplier;
+        }
+
         const existing = mergedModels.get(model.name);
-        if (!existing || model.ratio < existing.ratio) {
+        if (!existing || ratio < existing.ratio) {
           mergedModels.set(model.name, {
-            ratio: model.ratio,
-            completionRatio: model.completionRatio,
+            ratio,
+            completionRatio,
           });
         }
         if (!upstreamModels.find((m) => m.name === model.name)) {

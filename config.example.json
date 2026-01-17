@@ -11,7 +11,8 @@
       "systemAccessToken": "your-system-access-token",
       "userId": 1,
       "enabledGroups": ["aws-q", "cc", "gemini"],
-      "priority": 10
+      "priority": 10,
+      "priceMultiplier": 0.33
     }
   ]
 }
