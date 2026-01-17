@@ -41,9 +41,10 @@ export async function sync(config: Config): Promise<SyncReport> {
     provider: string;
   }> = [];
 
-  logInfo("Starting sync...\n");
+  logInfo("Starting sync...");
 
   for (const providerConfig of config.providers) {
+    logInfo(`[${providerConfig.name}] Fetching pricing...`);
     const providerReport: ProviderReport = {
       name: providerConfig.name,
       success: false,
@@ -65,6 +66,7 @@ export async function sync(config: Config): Promise<SyncReport> {
         groups = pricing.groups;
       }
 
+      logInfo(`[${providerConfig.name}] Syncing tokens for ${groups.length} groups...`);
       const tokenResult = await upstream.ensureTokens(
         groups,
         providerConfig.name,
@@ -155,6 +157,7 @@ export async function sync(config: Config): Promise<SyncReport> {
 
   const target = new TargetClient(config.target);
 
+  logInfo("Updating target options...");
   const optionsResult = await target.updateOptions({
     GroupRatio: JSON.stringify(groupRatio),
     UserUsableGroups: JSON.stringify(usableGroups),
@@ -172,10 +175,12 @@ export async function sync(config: Config): Promise<SyncReport> {
     });
   }
 
+  logInfo("Fetching existing channels...");
   const existingChannels = await target.listChannels();
   const existingByName = new Map(existingChannels.map((c) => [c.name, c]));
   const desiredChannelNames = new Set(channelsToCreate.map((c) => c.name));
 
+  logInfo(`Syncing ${channelsToCreate.length} channels...`);
   for (const spec of channelsToCreate) {
     const existing = existingByName.get(spec.name);
     const channelData: Channel = {
@@ -219,10 +224,11 @@ export async function sync(config: Config): Promise<SyncReport> {
   if (config.options?.deleteStaleChannels !== false) {
     for (const channel of existingChannels) {
       if (desiredChannelNames.has(channel.name)) continue;
-      if (channel.tag && !configuredProviders.has(channel.tag)) {
+      if (channel.tag && configuredProviders.has(channel.tag)) {
         const success = await target.deleteChannel(channel.id!);
         if (success) {
           report.channels.deleted++;
+          logInfo(`Deleted stale channel: ${channel.name}`);
         } else {
           report.errors.push({
             phase: "channels",
@@ -233,8 +239,9 @@ export async function sync(config: Config): Promise<SyncReport> {
     }
   }
 
+  logInfo("Fetching existing models...");
   const existingModels = await target.listModels();
-  const existingModelNames = new Set(existingModels.map((m) => m.model_name));
+  const existingModelsByName = new Map(existingModels.map((m) => [m.model_name, m]));
   const modelsToSync = new Set<string>();
   for (const channel of channelsToCreate) {
     for (const model of channel.models) {
@@ -242,23 +249,46 @@ export async function sync(config: Config): Promise<SyncReport> {
     }
   }
 
+  logInfo("Fetching target vendors...");
   const targetVendors = await target.listVendors();
   const vendorNameToTargetId: Record<string, number> = {};
   for (const v of targetVendors) {
     vendorNameToTargetId[v.name.toLowerCase()] = v.id;
   }
 
-  let modelsCreated = 0;
-  for (const modelName of modelsToSync) {
-    if (!existingModelNames.has(modelName)) {
-      const modelInfo = upstreamModels.find((m) => m.name === modelName);
-      const upstreamVendorName = modelInfo?.vendorId
-        ? upstreamVendorIdToName[modelInfo.vendorId]
-        : undefined;
-      const targetVendorId = upstreamVendorName
-        ? vendorNameToTargetId[upstreamVendorName.toLowerCase()]
-        : undefined;
+  // Map upstream vendor names to target vendor names
+  const vendorNameMapping: Record<string, string> = {
+    gemini: "google",
+    grok: "xai",
+  };
 
+  logInfo(`Syncing ${modelsToSync.size} models...`);
+  let modelsCreated = 0;
+  let modelsUpdated = 0;
+  for (const modelName of modelsToSync) {
+    const modelInfo = upstreamModels.find((m) => m.name === modelName);
+    const upstreamVendorName = modelInfo?.vendorId
+      ? upstreamVendorIdToName[modelInfo.vendorId]
+      : undefined;
+    const mappedVendorName = upstreamVendorName
+      ? (vendorNameMapping[upstreamVendorName.toLowerCase()] ?? upstreamVendorName.toLowerCase())
+      : undefined;
+    const targetVendorId = mappedVendorName
+      ? vendorNameToTargetId[mappedVendorName]
+      : undefined;
+
+    const existing = existingModelsByName.get(modelName);
+    if (existing) {
+      if (existing.vendor_id !== targetVendorId) {
+        const success = await target.updateModel({
+          ...existing,
+          vendor_id: targetVendorId,
+        });
+        if (success) {
+          modelsUpdated++;
+        }
+      }
+    } else {
       const success = await target.createModel({
         model_name: modelName,
         vendor_id: targetVendorId,
@@ -288,7 +318,7 @@ export async function sync(config: Config): Promise<SyncReport> {
   report.success = report.errors.length === 0;
 
   logInfo(
-    `Done in ${elapsed}s | Providers: ${report.providers.filter((p) => p.success).length}/${report.providers.length} | Channels: +${report.channels.created} ~${report.channels.updated} -${report.channels.deleted} | Models: +${modelsCreated} -${modelsDeleted}`,
+    `Done in ${elapsed}s | Providers: ${report.providers.filter((p) => p.success).length}/${report.providers.length} | Channels: +${report.channels.created} ~${report.channels.updated} -${report.channels.deleted} | Models: +${modelsCreated} ~${modelsUpdated} -${modelsDeleted}`,
   );
 
   if (report.errors.length > 0) {

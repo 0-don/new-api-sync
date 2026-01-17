@@ -137,6 +137,17 @@ export class TargetClient {
     return data.success;
   }
 
+  async updateModel(model: ModelMeta): Promise<boolean> {
+    const response = await fetch(`${this.config.url}/api/models/`, {
+      method: "PUT",
+      headers: this.headers,
+      body: JSON.stringify(model),
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as ApiResponse;
+    return data.success;
+  }
+
   async deleteModel(id: number): Promise<boolean> {
     const response = await fetch(`${this.config.url}/api/models/${id}`, {
       method: "DELETE",

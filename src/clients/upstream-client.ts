@@ -195,9 +195,11 @@ export class UpstreamClient {
     const existingTokens = await this.listTokens();
     const tokensByName = new Map(existingTokens.map((t) => [t.name, t]));
 
-    // Delete tokens that don't match our naming pattern
+    const desiredTokenNames = new Set(groups.map((g) => `${g.name}-${prefix}`));
+
+    // Delete tokens that are managed by us but no longer needed
     for (const token of existingTokens) {
-      if (!token.name.endsWith(`-${prefix}`)) {
+      if (token.name.endsWith(`-${prefix}`) && !desiredTokenNames.has(token.name)) {
         if (await this.deleteToken(token.id)) {
           logInfo(`[${this.provider.name}] Deleted stale token: ${token.name}`);
           deleted++;
