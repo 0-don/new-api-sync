@@ -1,7 +1,7 @@
 import { TargetClient } from "@/clients/target-client";
 import { UpstreamClient } from "@/clients/upstream-client";
 import { validateConfig } from "@/lib/config";
-import { logError, logInfo, sanitizeGroupName } from "@/lib/utils";
+import { sanitizeGroupName } from "@/lib/utils";
 import type {
   Channel,
   Config,
@@ -42,10 +42,7 @@ export async function sync(config: Config): Promise<SyncReport> {
     remark: string;
   }> = [];
 
-  logInfo("Starting sync...");
-
   for (const providerConfig of config.providers) {
-    logInfo(`[${providerConfig.name}] Fetching pricing...`);
     const providerReport: ProviderReport = {
       name: providerConfig.name,
       success: false,
@@ -67,7 +64,6 @@ export async function sync(config: Config): Promise<SyncReport> {
         groups = pricing.groups;
       }
 
-      logInfo(`[${providerConfig.name}] Syncing tokens for ${groups.length} groups...`);
       const tokenResult = await upstream.ensureTokens(
         groups,
         providerConfig.name,
@@ -133,14 +129,14 @@ export async function sync(config: Config): Promise<SyncReport> {
         phase: "fetch",
         message,
       });
-      logError(`Provider ${providerConfig.name} failed: ${message}`);
+      console.error(`Provider ${providerConfig.name} failed: ${message}`);
     }
 
     report.providers.push(providerReport);
   }
 
   if (mergedGroups.length === 0) {
-    logError("No groups collected from any provider");
+    console.error("No groups collected from any provider");
     report.success = false;
     report.errors.push({ phase: "collect", message: "No groups collected" });
     return report;
@@ -165,15 +161,8 @@ export async function sync(config: Config): Promise<SyncReport> {
     [...mergedModels.entries()].map(([k, v]) => [k, v.completionRatio]),
   );
 
-  // Log a sample of ratios for debugging
-  const sampleModels = [...mergedModels.entries()].slice(0, 3);
-  for (const [name, ratios] of sampleModels) {
-    logInfo(`Model ${name}: ratio=${ratios.ratio}, completionRatio=${ratios.completionRatio}`);
-  }
-
   const target = new TargetClient(config.target);
 
-  logInfo("Updating target options...");
   const optionsResult = await target.updateOptions({
     GroupRatio: JSON.stringify(groupRatio),
     UserUsableGroups: JSON.stringify(usableGroups),
@@ -191,12 +180,10 @@ export async function sync(config: Config): Promise<SyncReport> {
     });
   }
 
-  logInfo("Fetching existing channels...");
   const existingChannels = await target.listChannels();
   const existingByName = new Map(existingChannels.map((c) => [c.name, c]));
   const desiredChannelNames = new Set(channelsToCreate.map((c) => c.name));
 
-  logInfo(`Syncing ${channelsToCreate.length} channels...`);
   for (const spec of channelsToCreate) {
     const existing = existingByName.get(spec.name);
     const channelData: Channel = {
@@ -248,7 +235,6 @@ export async function sync(config: Config): Promise<SyncReport> {
         const success = await target.deleteChannel(channel.id!);
         if (success) {
           report.channels.deleted++;
-          logInfo(`Deleted stale channel: ${channel.name} (tag: ${channel.tag})`);
         } else {
           report.errors.push({
             phase: "channels",
@@ -259,7 +245,6 @@ export async function sync(config: Config): Promise<SyncReport> {
     }
   }
 
-  logInfo("Fetching existing models...");
   const existingModels = await target.listModels();
   const existingModelsByName = new Map(existingModels.map((m) => [m.model_name, m]));
   const modelsToSync = new Set<string>();
@@ -269,7 +254,6 @@ export async function sync(config: Config): Promise<SyncReport> {
     }
   }
 
-  logInfo("Fetching target vendors...");
   const targetVendors = await target.listVendors();
   const vendorNameToTargetId: Record<string, number> = {};
   for (const v of targetVendors) {
@@ -282,7 +266,6 @@ export async function sync(config: Config): Promise<SyncReport> {
     grok: "xai",
   };
 
-  logInfo(`Syncing ${modelsToSync.size} models...`);
   let modelsCreated = 0;
   let modelsUpdated = 0;
   for (const modelName of modelsToSync) {
@@ -317,9 +300,6 @@ export async function sync(config: Config): Promise<SyncReport> {
       });
       if (success) {
         modelsCreated++;
-        logInfo(
-          `Created model: ${modelName} (vendor: ${upstreamVendorName ?? "unknown"})`,
-        );
       }
     }
   }
@@ -329,7 +309,6 @@ export async function sync(config: Config): Promise<SyncReport> {
     if (model.sync_official === 1 && !modelsToSync.has(model.model_name)) {
       if (model.id && (await target.deleteModel(model.id))) {
         modelsDeleted++;
-        logInfo(`Deleted stale model: ${model.model_name}`);
       }
     }
   }
@@ -337,13 +316,13 @@ export async function sync(config: Config): Promise<SyncReport> {
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
   report.success = report.errors.length === 0;
 
-  logInfo(
+  console.log(
     `Done in ${elapsed}s | Providers: ${report.providers.filter((p) => p.success).length}/${report.providers.length} | Channels: +${report.channels.created} ~${report.channels.updated} -${report.channels.deleted} | Models: +${modelsCreated} ~${modelsUpdated} -${modelsDeleted}`,
   );
 
   if (report.errors.length > 0) {
     for (const err of report.errors) {
-      logError(`[${err.provider ?? "target"}/${err.phase}] ${err.message}`);
+      console.error(`[${err.provider ?? "target"}/${err.phase}] ${err.message}`);
     }
   }
 
