@@ -79,9 +79,16 @@ export async function sync(config: Config): Promise<SyncReport> {
 
       for (const group of groups) {
         const prefixedName = `${group.name}-${providerConfig.name}`;
+        let groupRatio = group.ratio;
+
+        // Apply priceMultiplier to group ratio for per-provider billing
+        if (providerConfig.priceMultiplier) {
+          groupRatio *= providerConfig.priceMultiplier;
+        }
+
         mergedGroups.push({
           name: prefixedName,
-          ratio: group.ratio,
+          ratio: groupRatio,
           description: `${group.description} [${providerConfig.name}]`,
           provider: providerConfig.name,
         });
@@ -98,19 +105,11 @@ export async function sync(config: Config): Promise<SyncReport> {
       }
 
       for (const model of pricing.models) {
-        let ratio = model.ratio;
-        let completionRatio = model.completionRatio;
-
-        if (providerConfig.priceMultiplier) {
-          ratio *= providerConfig.priceMultiplier;
-          completionRatio *= providerConfig.priceMultiplier;
-        }
-
         const existing = mergedModels.get(model.name);
-        if (!existing || ratio < existing.ratio) {
+        if (!existing || model.ratio < existing.ratio) {
           mergedModels.set(model.name, {
-            ratio,
-            completionRatio,
+            ratio: model.ratio,
+            completionRatio: model.completionRatio,
           });
         }
         if (!upstreamModels.find((m) => m.name === model.name)) {
