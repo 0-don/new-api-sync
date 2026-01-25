@@ -47,12 +47,27 @@ export async function sync(config: Config): Promise<SyncReport> {
     remark: string;
   }> = [];
 
+  // Non-text model patterns to exclude (video, image, audio, embedding, etc.)
+  const nonTextModelPatterns = [
+    "sora", "veo", "video", "image", "dall-e", "dalle", "midjourney",
+    "stable-diffusion", "flux", "imagen", "whisper", "tts", "speech",
+    "embedding", "embed", "moderation", "rerank",
+  ];
+
+  function isNonTextModel(name: string): boolean {
+    const n = name.toLowerCase();
+    return nonTextModelPatterns.some((pattern) => n.includes(pattern));
+  }
+
   // Infer vendor from model name for filtering and vendor assignment
   function inferVendorFromModelName(name: string): string | undefined {
+    // Skip non-text models
+    if (isNonTextModel(name)) return undefined;
+
     const n = name.toLowerCase();
     if (n.includes("claude") || n.includes("anthropic")) return "anthropic";
     if (n.includes("gemini") || n.includes("palm")) return "google";
-    if (n.includes("gpt") || n.includes("o1-") || n.includes("o3-") || n.startsWith("chatgpt")) return "openai";
+    if (n.includes("gpt") || n.includes("o1-") || n.includes("o3-") || n.includes("o4-") || n.startsWith("chatgpt")) return "openai";
     if (n.includes("deepseek")) return "deepseek";
     if (n.includes("grok")) return "xai";
     if (n.includes("mistral") || n.includes("codestral")) return "mistral";
@@ -141,7 +156,21 @@ export async function sync(config: Config): Promise<SyncReport> {
         const originalName = `${group.name}-${providerConfig.name}`;
         const sanitizedName = sanitizeGroupName(originalName);
         let groupRatio = group.ratio;
+
+        // Filter models by enabled vendors
         let workingModels = group.models;
+        if (providerConfig.enabledVendors?.length) {
+          const vendorSet = new Set(providerConfig.enabledVendors.map((v) => v.toLowerCase()));
+          workingModels = group.models.filter((modelName) => {
+            const vendor = inferVendorFromModelName(modelName);
+            return vendor && vendorSet.has(vendor);
+          });
+        }
+
+        // Skip group if no models match enabled vendors
+        if (workingModels.length === 0) {
+          continue;
+        }
 
         // Test models if option is enabled
         let avgResponseTime: number | undefined;
@@ -150,7 +179,7 @@ export async function sync(config: Config): Promise<SyncReport> {
           if (apiKey) {
             const testResult = await upstream.testModelsWithKey(
               apiKey,
-              group.models,
+              workingModels,
               group.channelType,
             );
             workingModels = testResult.workingModels;
@@ -196,7 +225,7 @@ export async function sync(config: Config): Promise<SyncReport> {
         mergedGroups.push({
           name: sanitizedName,
           ratio: groupRatio,
-          description: `${group.name} via ${providerConfig.name}`,
+          description: `${sanitizeGroupName(group.name)} via ${providerConfig.name}`,
           provider: providerConfig.name,
         });
         channelsToCreate.push({

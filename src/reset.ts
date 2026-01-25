@@ -61,8 +61,17 @@ async function reset(config: Config) {
     }
   }
 
+  // Clear sync-related options (GroupRatio, UserUsableGroups, AutoGroups, ModelRatio, CompletionRatio)
+  const optionsResult = await target.updateOptions({
+    GroupRatio: "{}",
+    UserUsableGroups: JSON.stringify({ auto: "Auto (Smart Routing with Failover)" }),
+    AutoGroups: "[]",
+    ModelRatio: "{}",
+    CompletionRatio: "{}",
+  });
+
   logInfo(
-    `Done | Channels: -${channelsDeleted} | Models: -${modelsDeleted} | Tokens: -${totalTokensDeleted}`,
+    `Done | Channels: -${channelsDeleted} | Models: -${modelsDeleted} | Tokens: -${totalTokensDeleted} | Options cleared: ${optionsResult.updated.length}`,
   );
 }
 
