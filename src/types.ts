@@ -2,6 +2,7 @@ export interface Config {
   target: TargetConfig;
   providers: AnyProviderConfig[];
   options?: SyncOptions;
+  blacklist?: string[];
 }
 
 export interface TargetConfig {

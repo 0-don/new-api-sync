@@ -5,6 +5,8 @@ import {
   calculatePriorityBonus,
   inferVendorFromModelName,
   isTextModel,
+  matchesAnyPattern,
+  matchesBlacklist,
 } from "@/constants";
 import { logInfo, sanitizeGroupName } from "@/lib/utils";
 import type {
@@ -59,11 +61,6 @@ export async function sync(config: Config): Promise<SyncReport> {
     });
   }
 
-  // Check if a model matches any of the enabled model patterns (partial match)
-  function modelMatchesPatterns(modelName: string, patterns: string[]): boolean {
-    const n = modelName.toLowerCase();
-    return patterns.some((pattern) => n.includes(pattern.toLowerCase()));
-  }
 
   for (const providerConfig of config.providers) {
     const providerReport: ProviderReport = {
@@ -127,6 +124,13 @@ export async function sync(config: Config): Promise<SyncReport> {
         );
       }
 
+      // Apply global blacklist to groups (by name or description)
+      if (config.blacklist?.length) {
+        groups = groups.filter(
+          (g) => !matchesBlacklist(g.name, config.blacklist) && !matchesBlacklist(g.description, config.blacklist),
+        );
+      }
+
       const tokenResult = await upstream.ensureTokens(
         groups,
         providerConfig.name,
@@ -146,8 +150,10 @@ export async function sync(config: Config): Promise<SyncReport> {
         const sanitizedName = sanitizeGroupName(originalName);
         let groupRatio = group.ratio;
 
-        // Always filter out non-text models first
-        let workingModels = group.models.filter((modelName) => isTextModel(modelName, undefined, modelEndpoints));
+        // Always filter out non-text models and blacklisted models first
+        let workingModels = group.models.filter(
+          (modelName) => isTextModel(modelName, undefined, modelEndpoints) && !matchesBlacklist(modelName, config.blacklist),
+        );
 
         // Then filter by enabled vendors if specified
         if (providerConfig.enabledVendors?.length) {
@@ -158,10 +164,10 @@ export async function sync(config: Config): Promise<SyncReport> {
           });
         }
 
-        // Filter by enabled models if specified (partial match)
+        // Filter by enabled models if specified (glob patterns supported)
         if (providerConfig.enabledModels?.length) {
           workingModels = workingModels.filter((modelName) =>
-            modelMatchesPatterns(modelName, providerConfig.enabledModels!),
+            matchesAnyPattern(modelName, providerConfig.enabledModels!),
           );
         }
 

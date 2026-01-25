@@ -136,3 +136,40 @@ export function calculatePriorityBonus(avgResponseTime?: number): number {
     PRIORITY.RESPONSE_TIME_DIVISOR / (avgResponseTime + PRIORITY.RESPONSE_TIME_OFFSET),
   );
 }
+
+/**
+ * Check if a string matches any blacklist pattern (case-insensitive).
+ */
+export function matchesBlacklist(text: string, blacklist?: string[]): boolean {
+  if (!blacklist?.length) return false;
+  const t = text.toLowerCase();
+  return blacklist.some((pattern) => t.includes(pattern.toLowerCase()));
+}
+
+/**
+ * Check if a model name matches a glob pattern (supports * wildcard).
+ * Examples: "claude-*-4-5" matches "claude-sonnet-4-5", "gpt-*" matches "gpt-4o"
+ */
+export function matchesGlobPattern(name: string, pattern: string): boolean {
+  const n = name.toLowerCase();
+  const p = pattern.toLowerCase();
+
+  // If no wildcard, do substring match (backward compatible)
+  if (!p.includes("*")) {
+    return n.includes(p);
+  }
+
+  // Convert glob to regex: escape special chars, replace * with .*
+  const regexStr = p
+    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*");
+  const regex = new RegExp(`^${regexStr}$`);
+  return regex.test(n);
+}
+
+/**
+ * Check if a model name matches any of the given patterns (glob or substring).
+ */
+export function matchesAnyPattern(name: string, patterns: string[]): boolean {
+  return patterns.some((p) => matchesGlobPattern(name, p));
+}

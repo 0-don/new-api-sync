@@ -4,9 +4,7 @@
     "systemAccessToken": "your-system-access-token",
     "userId": 1
   },
-  "options": {
-    "testModels": true
-  },
+  "blacklist": ["kiro", "nsfw"],
   "providers": [
     {
       "type": "newapi",
@@ -15,7 +13,7 @@
       "systemAccessToken": "your-system-access-token",
       "userId": 1,
       "enabledVendors": ["anthropic", "openai"],
-      "enabledModels": ["claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4-5", "gpt-5"],
+      "enabledModels": ["claude-*-4-5", "gpt-5"],
       "priceMultiplier": 0.33
     },
     {
