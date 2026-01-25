@@ -72,6 +72,34 @@ Channels are named `{provider}-{group}`: `newapi-aws-q`, `newapi-cc`, etc.
 
 ### Failover Order
 
+
+## Multi-Provider Example
+
+```json
+{
+  "target": {
+    "url": "https://your-instance.example.com",
+    "adminToken": "sk-xxx"
+  },
+  "providers": [
+    {
+      "name": "newapi",
+      "baseUrl": "https://www.newapi.ai",
+      "accessToken": "token-1",
+      "enabledGroups": ["aws-q", "cc", "gemini"],
+      "priority": 10
+    },
+    {
+      "name": "provider2",
+      "baseUrl": "https://other-newapi.example.com",
+      "accessToken": "token-2",
+      "priority": 5
+    }
+  ]
+}
+```
+
+
 <!-- AutoGroups sorted by ratio (cheapest first). Failed requests retry on next cheapest.
 
 ## Pricing & Margin Calculation
@@ -137,29 +165,3 @@ $20/month → $40 in token credits (2x value). Rate limited per 6h and weekly.
 - Non-EU customers: no VAT
 - Alipay receipts + ikun dashboard = Betriebsausgabe documentation (confirm with Steuerberater)
 - §13b reverse-charge applies on Chinese service imports -->
-
-## Multi-Provider Example
-
-```json
-{
-  "target": {
-    "url": "https://your-instance.example.com",
-    "adminToken": "sk-xxx"
-  },
-  "providers": [
-    {
-      "name": "newapi",
-      "baseUrl": "https://www.newapi.ai",
-      "accessToken": "token-1",
-      "enabledGroups": ["aws-q", "cc", "gemini"],
-      "priority": 10
-    },
-    {
-      "name": "provider2",
-      "baseUrl": "https://other-newapi.example.com",
-      "accessToken": "token-2",
-      "priority": 5
-    }
-  ]
-}
-```
