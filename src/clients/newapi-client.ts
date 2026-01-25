@@ -120,6 +120,7 @@ export class NewApiClient {
       completionRatio: m.completion_ratio,
       groups: m.enable_groups,
       vendorId: m.vendor_id,
+      supportedEndpoints: m.supported_endpoint_types,
     }));
 
     const modelRatios: Record<string, number> = {};

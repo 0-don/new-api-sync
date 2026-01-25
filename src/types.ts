@@ -98,6 +98,7 @@ export interface ModelInfo {
   completionRatio: number;
   groups: string[];
   vendorId?: number;
+  supportedEndpoints?: string[];
 }
 
 export interface UpstreamToken {
