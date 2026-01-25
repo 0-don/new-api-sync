@@ -2,9 +2,8 @@ import { NekoClient } from "@/clients/neko-client";
 import { NewApiClient } from "@/clients/newapi-client";
 import { TargetClient } from "@/clients/target-client";
 import { loadConfig } from "@/lib/config";
+import type { Config, NekoProviderConfig, ProviderConfig } from "@/lib/types";
 import { logError, logInfo } from "@/lib/utils";
-import type { Config, NekoProviderConfig, ProviderConfig } from "@/types";
-import { isNekoProvider } from "@/types";
 
 async function reset(config: Config) {
   logInfo("Starting reset...\n");
@@ -35,7 +34,7 @@ async function reset(config: Config) {
 
   let totalTokensDeleted = 0;
   for (const providerConfig of config.providers) {
-    if (isNekoProvider(providerConfig)) {
+    if (providerConfig.type === "neko") {
       const neko = new NekoClient(providerConfig as NekoProviderConfig);
       const tokens = await neko.listTokens();
       const tokensToDelete = tokens.filter((t) =>

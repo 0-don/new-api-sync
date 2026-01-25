@@ -1,13 +1,13 @@
 import { inferChannelType, PAGINATION } from "@/lib/constants";
 import { testModelsWithKey as testModels } from "@/lib/model-tester";
-import { logInfo } from "@/lib/utils";
 import type {
   GroupInfo,
   ModelInfo,
   ProviderConfig,
   UpstreamPricing,
   UpstreamToken,
-} from "@/types";
+} from "@/lib/types";
+import { logInfo } from "@/lib/utils";
 
 interface VendorInfo {
   id: number;

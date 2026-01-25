@@ -1,5 +1,4 @@
-import type { Config } from "@/types";
-import { isNekoProvider } from "@/types";
+import type { Config } from "@/lib/types";
 
 export async function loadConfig(path: string): Promise<Config> {
   const file = Bun.file(path);
@@ -20,13 +19,14 @@ export function validateConfig(config: Config): void {
     if (!p.name) throw new Error("Provider missing: name");
     if (!p.baseUrl) throw new Error(`Provider ${p.name} missing: baseUrl`);
 
-    if (isNekoProvider(p)) {
-      if (!p.sessionToken)
+    if (p.type === "neko") {
+      if (!("sessionToken" in p) || !p.sessionToken)
         throw new Error(`Provider ${p.name} missing: sessionToken`);
     } else {
-      if (!p.systemAccessToken)
+      if (!("systemAccessToken" in p) || !p.systemAccessToken)
         throw new Error(`Provider ${p.name} missing: systemAccessToken`);
-      if (!p.userId) throw new Error(`Provider ${p.name} missing: userId`);
+      if (!("userId" in p) || !p.userId)
+        throw new Error(`Provider ${p.name} missing: userId`);
     }
   }
 }

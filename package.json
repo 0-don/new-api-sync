@@ -2,12 +2,11 @@
   "name": "new-api-sync",
   "version": "0.2.0",
   "description": "Declarative multi-provider sync for new-api instances",
-  "module": "src/main.ts",
+  "module": "src/sync.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun run src/main.ts",
-    "sync": "bun run src/main.ts",
+    "sync": "bun run src/sync.ts",
     "reset": "bun run src/reset.ts",
     "typecheck": "tsc --noEmit"
   },

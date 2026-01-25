@@ -1,6 +1,6 @@
 import { PAGINATION } from "@/lib/constants";
+import type { Channel, ModelMeta, TargetConfig, Vendor } from "@/lib/types";
 import { fetchPaginated } from "@/lib/utils";
-import type { Channel, ModelMeta, TargetConfig, Vendor } from "@/types";
 
 interface ApiResponse<T = unknown> {
   success: boolean;

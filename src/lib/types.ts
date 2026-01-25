@@ -1,7 +1,6 @@
 export interface Config {
   target: TargetConfig;
   providers: AnyProviderConfig[];
-  options?: SyncOptions;
   blacklist?: string[];
 }
 
@@ -33,18 +32,6 @@ export interface NekoProviderConfig extends BaseProviderConfig {
 }
 
 export type AnyProviderConfig = ProviderConfig | NekoProviderConfig;
-
-export function isNekoProvider(p: AnyProviderConfig): p is NekoProviderConfig {
-  return p.type === "neko";
-}
-
-export function isNewApiProvider(p: AnyProviderConfig): p is ProviderConfig {
-  return p.type !== "neko";
-}
-
-export interface SyncOptions {
-  testModels?: boolean;
-}
 
 export interface SyncReport {
   success: boolean;
