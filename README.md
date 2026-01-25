@@ -1,6 +1,6 @@
 # new-api-sync
 
-Declarative multi-provider sync for [new-api](https://github.com/Calcium-Ion/new-api) instances. Syncs pricing, groups, channels, and models from upstream providers to your own instance.
+Declarative multi-provider sync for [new-api](https://github.com/QuantumNous/new-api) instances. Syncs pricing, groups, channels, and models from upstream providers to your own instance.
 
 ## Features
 
