@@ -1,24 +1,21 @@
 {
   "name": "new-api-sync",
-  "version": "0.2.0",
   "description": "Declarative multi-provider sync for new-api instances",
-  "module": "src/sync.ts",
   "type": "module",
   "private": true,
   "scripts": {
     "sync": "bun run src/sync.ts",
     "reset": "bun run src/reset.ts",
-    "build": "tsc", 
-    "typecheck": "tsc --noEmit"
+    "build": "tsc"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "@types/node": "^22.0.0"
+    "@types/bun": "1.3.6",
+    "@types/node": "25.0.10"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "5.9.3"
   },
   "dependencies": {
-    "consola": "^3.4.2"
+    "consola": "3.4.2"
   }
 }
