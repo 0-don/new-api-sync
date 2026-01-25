@@ -1,8 +1,3 @@
-/**
- * Centralized constants for the sync application.
- * Extracted from scattered magic numbers across the codebase.
- */
-
 // Pagination configuration
 export const PAGINATION = {
   DEFAULT_PAGE_SIZE: 100,

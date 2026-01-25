@@ -1,13 +1,9 @@
+// ============ Configuration ============
+
 export interface NewApiConfig {
   baseUrl: string;
   systemAccessToken: string;
   userId: number;
-}
-
-export interface Config {
-  target: NewApiConfig;
-  providers: AnyProviderConfig[];
-  blacklist?: string[];
 }
 
 export interface BaseProviderConfig extends NewApiConfig {
@@ -29,6 +25,14 @@ export interface NekoProviderConfig extends Omit<BaseProviderConfig, "systemAcce
 }
 
 export type AnyProviderConfig = ProviderConfig | NekoProviderConfig;
+
+export interface Config {
+  target: NewApiConfig;
+  providers: AnyProviderConfig[];
+  blacklist?: string[];
+}
+
+// ============ Reports ============
 
 export interface SyncReport {
   success: boolean;
@@ -54,6 +58,16 @@ export interface SyncError {
   message: string;
 }
 
+export interface ResetReport {
+  channels: number;
+  models: number;
+  orphans: number;
+  tokens: number;
+  options: number;
+}
+
+// ============ Upstream Pricing ============
+
 export interface UpstreamPricing {
   groups: GroupInfo[];
   models: ModelInfo[];
@@ -61,12 +75,6 @@ export interface UpstreamPricing {
   modelRatios: Record<string, number>;
   completionRatios: Record<string, number>;
   vendorIdToName: Record<number, string>;
-}
-
-export interface Vendor {
-  id: number;
-  name: string;
-  icon?: string;
 }
 
 export interface GroupInfo {
@@ -86,6 +94,12 @@ export interface ModelInfo {
   supportedEndpoints?: string[];
 }
 
+export interface Vendor {
+  id: number;
+  name: string;
+  icon?: string;
+}
+
 export interface UpstreamToken {
   id: number;
   name: string;
@@ -93,6 +107,8 @@ export interface UpstreamToken {
   group: string;
   status: number;
 }
+
+// ============ Channels & Models ============
 
 export interface Channel {
   id?: number;
@@ -107,6 +123,19 @@ export interface Channel {
   status: number;
   tag?: string;
   remark?: string;
+}
+
+export interface ChannelSpec {
+  name: string;
+  type: number;
+  key: string;
+  baseUrl: string;
+  models: string[];
+  group: string;
+  priority: number;
+  weight: number;
+  provider: string;
+  remark: string;
 }
 
 export interface ModelMeta {
@@ -129,6 +158,8 @@ export interface MergedModel {
   completionRatio: number;
 }
 
+// ============ Model Testing ============
+
 export interface TestResult {
   success: boolean;
   responseTime?: number;
@@ -139,20 +170,8 @@ export interface TestModelsResult {
   avgResponseTime?: number;
 }
 
-export interface ChannelSpec {
-  name: string;
-  type: number;
-  key: string;
-  baseUrl: string;
-  models: string[];
-  group: string;
-  priority: number;
-  weight: number;
-  provider: string;
-  remark: string;
-}
+// ============ Neko API ============
 
-// Neko API types
 export interface NekoGroup {
   id: number;
   name: string;
@@ -187,7 +206,8 @@ export interface NekoToken {
   pay_as_you_go_group?: { name: string; ratio: string };
 }
 
-// NewAPI response types
+// ============ NewAPI Responses ============
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;

@@ -468,8 +468,3 @@ export class SyncService {
     return report;
   }
 }
-
-// Convenience function for backwards compatibility
-export async function sync(config: Config): Promise<SyncReport> {
-  return new SyncService(config).sync();
-}
