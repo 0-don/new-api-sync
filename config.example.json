@@ -15,15 +15,6 @@
       "enabledVendors": ["anthropic", "openai"],
       "enabledModels": ["claude-*-4-5", "gpt-5"],
       "priceMultiplier": 0.33
-    },
-    {
-      "type": "neko",
-      "name": "neko",
-      "baseUrl": "https://nekocode.ai",
-      "sessionToken": "your-session-cookie-value",
-      "enabledVendors": ["anthropic"],
-      "enabledModels": [],
-      "priceMultiplier": 1.0
     }
   ]
 }

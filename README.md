@@ -4,7 +4,7 @@ Declarative multi-provider sync for [new-api](https://github.com/QuantumNous/new
 
 ## Features
 
-- **Multi-provider support** — Sync from multiple new-api and Neko instances
+- **Multi-provider support** — Sync from multiple new-api instances
 - **Model testing** — Validates models actually work before creating channels
 - **Glob pattern filtering** — Filter models with patterns like `claude-*-4-5`
 - **Vendor filtering** — Sync only specific vendors (anthropic, openai, google, etc.)
@@ -50,14 +50,6 @@ bun run reset
       "enabledModels": ["claude-*-4-5", "gpt-5"],
       "priceMultiplier": 0.5,
       "priority": 10
-    },
-    {
-      "type": "neko",
-      "name": "neko",
-      "baseUrl": "https://nekocode.ai",
-      "sessionToken": "session-cookie-value",
-      "enabledVendors": ["anthropic"],
-      "priceMultiplier": 0.25
     }
   ]
 }
@@ -88,17 +80,6 @@ Your new-api instance where channels and settings will be synced.
 | `enabledModels` | | Glob patterns: `["claude-*-4-5", "gpt-5"]` |
 | `priceMultiplier` | | Multiply group ratios (e.g., `0.5` = 50% markup) |
 | `priority` | | Base priority for channels (default: 0) |
-
-#### Neko Provider (`type: "neko"`)
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | ✓ | Unique identifier |
-| `baseUrl` | ✓ | Neko instance URL |
-| `sessionToken` | ✓ | Session cookie value |
-| `enabledVendors` | | Filter by vendor |
-| `enabledModels` | | Glob patterns |
-| `priceMultiplier` | | Price multiplier |
 
 ### Blacklist
 
@@ -131,7 +112,7 @@ Global blacklist applies to group names, descriptions, and model names:
 
 Channels are named `{group}-{provider}` and tagged with the provider name:
 - `aws-q-newapi`
-- `claude-neko`
+- `claude-provider1`
 
 ### Priority & Failover
 
@@ -146,8 +127,7 @@ src/
 ├── sync.ts              # Entry point
 ├── reset.ts             # Reset/cleanup entry point
 ├── clients/
-│   ├── newapi-client.ts # NewApiClient class (unified for target + providers)
-│   └── neko-client.ts   # NekoClient class
+│   └── newapi-client.ts # NewApiClient class (unified for target + providers)
 ├── service/
 │   ├── sync.ts          # SyncService class
 │   └── model-tester.ts  # ModelTester class
@@ -170,5 +150,5 @@ bun run sync ./custom-config.json
 bun run reset
 
 # Type check
-bun run typecheck
+bun run build
 ```

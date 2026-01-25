@@ -426,10 +426,22 @@ export class NewApiClient {
         method: "DELETE",
         headers: this.headers,
       });
-      if (!response.ok) return 0;
+      if (!response.ok) {
+        if (response.status === 404) {
+          consola.warn(`[${this.name}] Orphan cleanup endpoint not supported (404)`);
+        } else {
+          consola.warn(`[${this.name}] Orphan cleanup failed: ${response.status}`);
+        }
+        return 0;
+      }
       const data = (await response.json()) as ApiResponse<{ deleted: number }>;
-      return data.data?.deleted ?? 0;
-    } catch {
+      const deleted = data.data?.deleted ?? 0;
+      if (deleted > 0) {
+        consola.info(`[${this.name}] Cleaned up ${deleted} orphaned models`);
+      }
+      return deleted;
+    } catch (error) {
+      consola.warn(`[${this.name}] Orphan cleanup failed: ${error}`);
       return 0;
     }
   }

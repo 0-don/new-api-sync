@@ -1,6 +1,5 @@
-import { NekoClient } from "@/clients/neko-client";
 import { NewApiClient } from "@/clients/newapi-client";
-import type { Config, NekoProviderConfig, ProviderConfig, ResetReport } from "@/lib/types";
+import type { Config, ResetReport } from "@/lib/types";
 import { consola } from "consola";
 
 export class ResetService {
@@ -42,25 +41,11 @@ export class ResetService {
     // Delete provider tokens
     for (const providerConfig of this.config.providers) {
       const suffix = `-${providerConfig.name}`;
-
-      if (providerConfig.type === "neko") {
-        const client = new NekoClient(providerConfig as NekoProviderConfig);
-        const tokens = await client.listTokens();
-        for (const token of tokens) {
-          if (token.name.endsWith(suffix)) {
-            if (await client.deleteToken(token.id)) {
-              report.tokens++;
-              consola.info(`[${providerConfig.name}] Deleted token: ${token.name}`);
-            }
-          }
-        }
-      } else {
-        const client = new NewApiClient(providerConfig as ProviderConfig);
-        const tokens = await client.listTokens();
-        for (const token of tokens) {
-          if (token.name.endsWith(suffix)) {
-            if (await client.deleteToken(token.id)) report.tokens++;
-          }
+      const client = new NewApiClient(providerConfig);
+      const tokens = await client.listTokens();
+      for (const token of tokens) {
+        if (token.name.endsWith(suffix)) {
+          if (await client.deleteToken(token.id)) report.tokens++;
         }
       }
     }

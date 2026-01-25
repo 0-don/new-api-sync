@@ -19,12 +19,7 @@ export interface ProviderConfig extends BaseProviderConfig {
   type?: "newapi";
 }
 
-export interface NekoProviderConfig extends Omit<BaseProviderConfig, "systemAccessToken" | "userId"> {
-  type: "neko";
-  sessionToken: string;
-}
-
-export type AnyProviderConfig = ProviderConfig | NekoProviderConfig;
+export type AnyProviderConfig = ProviderConfig;
 
 export interface Config {
   target: NewApiConfig;
@@ -168,42 +163,6 @@ export interface TestResult {
 export interface TestModelsResult {
   workingModels: string[];
   avgResponseTime?: number;
-}
-
-// ============ Neko API ============
-
-export interface NekoGroup {
-  id: number;
-  name: string;
-  description: string;
-  ratio: string;
-  rpm: number | null;
-  is_default: boolean;
-}
-
-export interface NekoModel {
-  id: number;
-  model: string;
-  provider: string;
-  input_price_per_m: string;
-  output_price_per_m: string;
-  cache_read_price_per_m: string;
-  cache_write_price_per_m: string;
-  enabled: boolean;
-  description: string;
-}
-
-export interface NekoToken {
-  id: number;
-  name: string;
-  key: string;
-  billing_type: string;
-  subscription_group_id: number;
-  pay_as_you_go_group_id: number;
-  used_quota: string;
-  enabled: boolean;
-  subscription_group?: { name: string; ratio: string };
-  pay_as_you_go_group?: { name: string; ratio: string };
 }
 
 // ============ NewAPI Responses ============

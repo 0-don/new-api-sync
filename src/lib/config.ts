@@ -18,15 +18,9 @@ export function validateConfig(config: Config): void {
   for (const p of config.providers) {
     if (!p.name) throw new Error("Provider missing: name");
     if (!p.baseUrl) throw new Error(`Provider ${p.name} missing: baseUrl`);
-
-    if (p.type === "neko") {
-      if (!("sessionToken" in p) || !p.sessionToken)
-        throw new Error(`Provider ${p.name} missing: sessionToken`);
-    } else {
-      if (!("systemAccessToken" in p) || !p.systemAccessToken)
-        throw new Error(`Provider ${p.name} missing: systemAccessToken`);
-      if (!("userId" in p) || !p.userId)
-        throw new Error(`Provider ${p.name} missing: userId`);
-    }
+    if (!("systemAccessToken" in p) || !p.systemAccessToken)
+      throw new Error(`Provider ${p.name} missing: systemAccessToken`);
+    if (!("userId" in p) || !p.userId)
+      throw new Error(`Provider ${p.name} missing: userId`);
   }
 }

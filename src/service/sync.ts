@@ -1,4 +1,3 @@
-import { NekoClient } from "@/clients/neko-client";
 import { NewApiClient } from "@/clients/newapi-client";
 import {
   calculatePriorityBonus,
@@ -15,7 +14,6 @@ import type {
   GroupInfo,
   MergedGroup,
   MergedModel,
-  NekoProviderConfig,
   ProviderConfig,
   ProviderReport,
   SyncReport,
@@ -39,7 +37,7 @@ export class SyncService {
   }
 
   private async processProvider(
-    providerConfig: ProviderConfig | NekoProviderConfig,
+    providerConfig: ProviderConfig,
     report: SyncReport,
   ): Promise<ProviderReport> {
     const providerReport: ProviderReport = {
@@ -51,10 +49,7 @@ export class SyncService {
     };
 
     try {
-      const upstream =
-        providerConfig.type === "neko"
-          ? new NekoClient(providerConfig as NekoProviderConfig)
-          : new NewApiClient(providerConfig as ProviderConfig);
+      const upstream = new NewApiClient(providerConfig);
 
       const startBalance = await upstream.fetchBalance();
       const pricing = await upstream.fetchPricing();
