@@ -1,17 +1,22 @@
+import { NekoClient } from "@/clients/neko-client";
 import { TargetClient } from "@/clients/target-client";
 import { UpstreamClient } from "@/clients/upstream-client";
 import { validateConfig } from "@/lib/config";
 import { sanitizeGroupName } from "@/lib/utils";
 import type {
+  AnyProviderConfig,
   Channel,
   Config,
   GroupInfo,
   MergedGroup,
   MergedModel,
   ModelInfo,
+  NekoProviderConfig,
+  ProviderConfig,
   ProviderReport,
   SyncReport,
 } from "@/types";
+import { isNekoProvider } from "@/types";
 
 export async function sync(config: Config): Promise<SyncReport> {
   const startTime = Date.now();
@@ -52,7 +57,10 @@ export async function sync(config: Config): Promise<SyncReport> {
     };
 
     try {
-      const upstream = new UpstreamClient(providerConfig);
+      const isNeko = isNekoProvider(providerConfig);
+      const upstream = isNeko
+        ? new NekoClient(providerConfig as NekoProviderConfig)
+        : new UpstreamClient(providerConfig as ProviderConfig);
       const pricing = await upstream.fetchPricing();
 
       let groups: GroupInfo[];

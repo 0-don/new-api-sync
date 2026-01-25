@@ -1,8 +1,10 @@
+import { NekoClient } from "@/clients/neko-client";
 import { TargetClient } from "@/clients/target-client";
 import { UpstreamClient } from "@/clients/upstream-client";
 import { loadConfig } from "@/lib/config";
 import { logError, logInfo } from "@/lib/utils";
-import type { Config } from "@/types";
+import type { Config, NekoProviderConfig, ProviderConfig } from "@/types";
+import { isNekoProvider } from "@/types";
 
 async function reset(config: Config) {
   logInfo("Starting reset...\n");
@@ -30,15 +32,32 @@ async function reset(config: Config) {
 
   let totalTokensDeleted = 0;
   for (const providerConfig of config.providers) {
-    const upstream = new UpstreamClient(providerConfig);
-    const tokens = await upstream.listTokens();
-    const tokensToDelete = tokens.filter((t) =>
-      t.name.endsWith(`-${providerConfig.name}`),
-    );
+    if (isNekoProvider(providerConfig)) {
+      const neko = new NekoClient(providerConfig as NekoProviderConfig);
+      const tokens = await neko.listTokens();
+      const tokensToDelete = tokens.filter((t) =>
+        t.name.endsWith(`-${providerConfig.name}`),
+      );
 
-    for (const token of tokensToDelete) {
-      if (await upstream.deleteToken(token.id)) totalTokensDeleted++;
-      else logError(`Failed to delete token: ${token.name}`);
+      for (const token of tokensToDelete) {
+        if (await neko.deleteToken(token.id)) {
+          totalTokensDeleted++;
+          logInfo(`[${providerConfig.name}] Deleted token: ${token.name}`);
+        } else {
+          logError(`Failed to delete token: ${token.name}`);
+        }
+      }
+    } else {
+      const upstream = new UpstreamClient(providerConfig as ProviderConfig);
+      const tokens = await upstream.listTokens();
+      const tokensToDelete = tokens.filter((t) =>
+        t.name.endsWith(`-${providerConfig.name}`),
+      );
+
+      for (const token of tokensToDelete) {
+        if (await upstream.deleteToken(token.id)) totalTokensDeleted++;
+        else logError(`Failed to delete token: ${token.name}`);
+      }
     }
   }
 

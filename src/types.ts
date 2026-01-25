@@ -1,6 +1,6 @@
 export interface Config {
   target: TargetConfig;
-  providers: ProviderConfig[];
+  providers: AnyProviderConfig[];
   options?: SyncOptions;
 }
 
@@ -10,14 +10,33 @@ export interface TargetConfig {
   userId: number;
 }
 
-export interface ProviderConfig {
+export interface BaseProviderConfig {
   name: string;
   baseUrl: string;
-  systemAccessToken: string;
-  userId: number;
   enabledGroups?: string[];
   priority?: number;
   priceMultiplier?: number;
+}
+
+export interface ProviderConfig extends BaseProviderConfig {
+  type?: "newapi";
+  systemAccessToken: string;
+  userId: number;
+}
+
+export interface NekoProviderConfig extends BaseProviderConfig {
+  type: "neko";
+  sessionToken: string;
+}
+
+export type AnyProviderConfig = ProviderConfig | NekoProviderConfig;
+
+export function isNekoProvider(p: AnyProviderConfig): p is NekoProviderConfig {
+  return p.type === "neko";
+}
+
+export function isNewApiProvider(p: AnyProviderConfig): p is ProviderConfig {
+  return p.type !== "neko";
 }
 
 export interface SyncOptions {
