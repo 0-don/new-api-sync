@@ -7,7 +7,7 @@ import {
   isTextModel,
   matchesAnyPattern,
   matchesBlacklist,
-} from "@/constants";
+} from "@/lib/constants";
 import { logInfo, sanitizeGroupName } from "@/lib/utils";
 import type {
   Channel,

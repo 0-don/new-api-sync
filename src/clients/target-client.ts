@@ -1,4 +1,4 @@
-import { PAGINATION } from "@/constants";
+import { PAGINATION } from "@/lib/constants";
 import { fetchPaginated } from "@/lib/utils";
 import type { Channel, ModelMeta, TargetConfig, Vendor } from "@/types";
 

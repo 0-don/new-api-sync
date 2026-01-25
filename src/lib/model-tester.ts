@@ -1,4 +1,4 @@
-import { CHANNEL_TYPES, TIMEOUTS } from "@/constants";
+import { CHANNEL_TYPES, TIMEOUTS } from "@/lib/constants";
 
 export interface TestResult {
   success: boolean;

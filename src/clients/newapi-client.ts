@@ -1,4 +1,4 @@
-import { inferChannelType, PAGINATION } from "@/constants";
+import { inferChannelType, PAGINATION } from "@/lib/constants";
 import { testModelsWithKey as testModels } from "@/lib/model-tester";
 import { logInfo } from "@/lib/utils";
 import type {
