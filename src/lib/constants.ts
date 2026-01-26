@@ -1,3 +1,5 @@
+import micromatch from "micromatch";
+
 // Pagination configuration
 export const PAGINATION = {
   DEFAULT_PAGE_SIZE: 100,
@@ -143,7 +145,7 @@ export function matchesBlacklist(text: string, blacklist?: string[]): boolean {
 
 /**
  * Check if a model name matches a glob pattern (supports * wildcard).
- * Examples: "claude-*-4-5" matches "claude-sonnet-4-5", "gpt-*" matches "gpt-4o"
+ * Examples: "claude-*-4-5*" matches "claude-sonnet-4-5-20251101", "gpt-*" matches "gpt-4o"
  */
 export function matchesGlobPattern(name: string, pattern: string): boolean {
   const n = name.toLowerCase();
@@ -154,12 +156,7 @@ export function matchesGlobPattern(name: string, pattern: string): boolean {
     return n.includes(p);
   }
 
-  // Convert glob to regex: escape special chars, replace * with .*
-  const regexStr = p
-    .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\*/g, ".*");
-  const regex = new RegExp(`^${regexStr}$`);
-  return regex.test(n);
+  return micromatch.isMatch(n, p);
 }
 
 /**
