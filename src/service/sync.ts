@@ -263,7 +263,8 @@ export class SyncService {
   }
 
   private async syncToTarget(report: SyncReport): Promise<{ modelsCreated: number; modelsUpdated: number; modelsDeleted: number; orphansDeleted: number }> {
-    const groupRatio = Object.fromEntries(this.mergedGroups.map((g) => [g.name, g.ratio]));
+    const round = (n: number) => Math.round(n * 10000) / 10000;
+    const groupRatio = Object.fromEntries(this.mergedGroups.map((g) => [g.name, round(g.ratio)]));
     const autoGroups = [...this.mergedGroups].sort((a, b) => a.ratio - b.ratio).map((g) => g.name);
     const usableGroups: Record<string, string> = {
       auto: "Auto (Smart Routing with Failover)",
@@ -272,10 +273,10 @@ export class SyncService {
       usableGroups[group.name] = group.description;
     }
     const modelRatio = Object.fromEntries(
-      [...this.mergedModels.entries()].map(([k, v]) => [k, v.ratio]),
+      [...this.mergedModels.entries()].map(([k, v]) => [k, round(v.ratio)]),
     );
     const completionRatio = Object.fromEntries(
-      [...this.mergedModels.entries()].map(([k, v]) => [k, v.completionRatio]),
+      [...this.mergedModels.entries()].map(([k, v]) => [k, round(v.completionRatio)]),
     );
 
     const target = new NewApiClient(this.config.target);
