@@ -12,6 +12,13 @@ export const TIMEOUTS = {
   MODEL_TEST_MS: 10000,
 } as const;
 
+// Retry configuration
+export const RETRY = {
+  MAX_ATTEMPTS: 3,
+  BASE_DELAY_MS: 1000,
+  MAX_DELAY_MS: 10000,
+} as const;
+
 // Channel type identifiers from new-api
 export const CHANNEL_TYPES = {
   OPENAI: 1,
@@ -175,4 +182,44 @@ export function sanitizeGroupName(name: string): string {
     .replace(/[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/**
+ * Apply model name mapping. Returns mapped name if exists, otherwise original.
+ */
+export function applyModelMapping(
+  modelName: string,
+  mapping?: Record<string, string>,
+): string {
+  return mapping?.[modelName] ?? modelName;
+}
+
+/**
+ * Retry a function with exponential backoff.
+ * @param fn Function to retry
+ * @param maxAttempts Maximum retry attempts (default: 3)
+ * @param baseDelay Base delay in ms (default: 1000)
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = RETRY.MAX_ATTEMPTS,
+  baseDelay = RETRY.BASE_DELAY_MS,
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt === maxAttempts) break;
+
+      // Exponential backoff: delay = baseDelay * 2^(attempt-1)
+      const delay = Math.min(baseDelay * 2 ** (attempt - 1), RETRY.MAX_DELAY_MS);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
 }

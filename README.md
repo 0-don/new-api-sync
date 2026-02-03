@@ -6,11 +6,14 @@ Declarative multi-provider sync for [new-api](https://github.com/QuantumNous/new
 
 - **Multi-provider support** — Sync from multiple new-api instances
 - **Model testing** — Validates models actually work before creating channels
+- **Model name mapping** — Transform complex model names to user-friendly aliases
 - **Glob pattern filtering** — Filter models with patterns like `claude-*-4-5`
 - **Vendor filtering** — Sync only specific vendors (anthropic, openai, google, etc.)
 - **Blacklist** — Exclude groups/models by keyword
 - **Dynamic priority** — Faster providers get higher priority automatically
 - **Price multipliers** — Per-provider billing adjustments
+- **Automatic retries** — Exponential backoff for transient API failures
+- **Config validation** — Comprehensive checks with clear error messages
 - **Idempotent** — Safe to run repeatedly; upserts everything, cleans up stale data
 
 ## Quick Start
@@ -39,6 +42,10 @@ bun run reset
     "userId": 1
   },
   "blacklist": ["nsfw", "kiro"],
+  "modelMapping": {
+    "claude-sonnet-4-5-20250929-long-name": "claude-sonnet-4-5",
+    "gpt-4o-turbo-2024-04-09": "gpt-4o-turbo"
+  },
   "providers": [
     {
       "type": "newapi",
@@ -99,6 +106,21 @@ Global blacklist applies to group names, descriptions, and model names:
 - `gpt-5` — Exact substring match
 - `*-preview` — Matches anything ending in `-preview`
 
+### Model Mapping
+
+Map complex upstream model names to simpler, user-friendly names:
+
+```json
+{
+  "modelMapping": {
+    "claude-sonnet-4-5-20250929-complex-suffix": "claude-sonnet-4-5",
+    "gpt-4o-turbo-2024-04-09-preview-extended": "gpt-4o-turbo"
+  }
+}
+```
+
+This is useful for public welfare stations (公益站) that use complex model naming schemes. The original model name is used for upstream API calls, but your channels will expose the simpler mapped name.
+
 ## How It Works
 
 1. **Fetch** — For each provider: fetch pricing, filter groups/models
@@ -119,23 +141,6 @@ Channels are named `{group}-{provider}` and tagged with the provider name:
 - **AutoGroups** sorted by ratio (cheapest first)
 - **Dynamic priority** from response time: faster = higher priority
 - Failed requests automatically retry on next available channel
-
-## Project Structure
-
-```
-src/
-├── sync.ts              # Entry point
-├── reset.ts             # Reset/cleanup entry point
-├── clients/
-│   └── newapi-client.ts # NewApiClient class (unified for target + providers)
-├── service/
-│   ├── sync.ts          # SyncService class
-│   └── model-tester.ts  # ModelTester class
-└── lib/
-    ├── config.ts        # Config loading/validation
-    ├── constants.ts     # Constants and utility functions
-    └── types.ts         # TypeScript interfaces
-```
 
 ## Commands
 

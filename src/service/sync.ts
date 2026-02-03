@@ -1,5 +1,6 @@
 import { NewApiClient } from "@/clients/newapi-client";
 import {
+  applyModelMapping,
   calculatePriorityBonus,
   inferVendorFromModelName,
   isTextModel,
@@ -198,6 +199,11 @@ export class SyncService {
         const dynamicPriority = basePriority + responseBonus;
         const dynamicWeight = responseBonus > 0 ? responseBonus : 1;
 
+        // Apply model name mapping if configured
+        const mappedModels = workingModels.map((m) =>
+          applyModelMapping(m, this.config.modelMapping),
+        );
+
         this.mergedGroups.push({
           name: sanitizedName,
           ratio: groupRatio,
@@ -209,7 +215,7 @@ export class SyncService {
           type: group.channelType,
           key: tokenResult.tokens[group.name] ?? "",
           baseUrl: providerConfig.baseUrl,
-          models: workingModels,
+          models: mappedModels,
           group: sanitizedName,
           priority: dynamicPriority,
           weight: dynamicWeight,

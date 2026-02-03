@@ -1,4 +1,4 @@
-import { inferChannelType, PAGINATION } from "@/lib/constants";
+import { inferChannelType, PAGINATION, withRetry } from "@/lib/constants";
 import type {
   ApiResponse,
   Channel,
@@ -65,11 +65,14 @@ export class NewApiClient {
   }
 
   async fetchPricing(): Promise<UpstreamPricing> {
-    const response = await fetch(`${this.baseUrl}/api/pricing`);
-    if (!response.ok)
-      throw new Error(`Failed to fetch pricing: ${response.status}`);
-    const data = (await response.json()) as PricingResponse;
-    if (!data.success) throw new Error("Pricing API returned success: false");
+    const data = await withRetry(async () => {
+      const response = await fetch(`${this.baseUrl}/api/pricing`);
+      if (!response.ok)
+        throw new Error(`Failed to fetch pricing: ${response.status}`);
+      const data = (await response.json()) as PricingResponse;
+      if (!data.success) throw new Error("Pricing API returned success: false");
+      return data;
+    });
 
     const groupModels = new Map<string, Set<string>>();
     const groupEndpoints = new Map<string, Set<string>>();
@@ -138,18 +141,20 @@ export class NewApiClient {
     const allTokens: UpstreamToken[] = [];
     let page = PAGINATION.START_PAGE_ZERO;
     while (true) {
-      const response = await fetch(
-        `${this.baseUrl}/api/token/?p=${page}&page_size=${PAGINATION.DEFAULT_PAGE_SIZE}`,
-        { headers: this.headers },
-      );
-      if (!response.ok)
-        throw new Error(`Failed to list tokens: ${response.status}`);
-      const data = (await response.json()) as TokenListResponse;
-      if (!data.success)
-        throw new Error("Token list API returned success: false");
-      const tokens = Array.isArray(data.data)
-        ? data.data
-        : (data.data?.items ?? data.data?.data ?? []);
+      const tokens = await withRetry(async () => {
+        const response = await fetch(
+          `${this.baseUrl}/api/token/?p=${page}&page_size=${PAGINATION.DEFAULT_PAGE_SIZE}`,
+          { headers: this.headers },
+        );
+        if (!response.ok)
+          throw new Error(`Failed to list tokens: ${response.status}`);
+        const data = (await response.json()) as TokenListResponse;
+        if (!data.success)
+          throw new Error("Token list API returned success: false");
+        return Array.isArray(data.data)
+          ? data.data
+          : (data.data?.items ?? data.data?.data ?? []);
+      });
       allTokens.push(...tokens);
       if (tokens.length < PAGINATION.DEFAULT_PAGE_SIZE) break;
       page++;
@@ -158,25 +163,27 @@ export class NewApiClient {
   }
 
   async createToken(name: string, group: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/token/`, {
-      method: "POST",
-      headers: this.headers,
-      body: JSON.stringify({
-        name,
-        group,
-        expired_time: -1,
-        unlimited_quota: true,
-        model_limits_enabled: false,
-      }),
+    await withRetry(async () => {
+      const response = await fetch(`${this.baseUrl}/api/token/`, {
+        method: "POST",
+        headers: this.headers,
+        body: JSON.stringify({
+          name,
+          group,
+          expired_time: -1,
+          unlimited_quota: true,
+          model_limits_enabled: false,
+        }),
+      });
+      if (!response.ok)
+        throw new Error(`Failed to create token: ${response.status}`);
+      const data = (await response.json()) as {
+        success: boolean;
+        message?: string;
+      };
+      if (!data.success)
+        throw new Error(`Token create failed: ${data.message ?? "unknown"}`);
     });
-    if (!response.ok)
-      throw new Error(`Failed to create token: ${response.status}`);
-    const data = (await response.json()) as {
-      success: boolean;
-      message?: string;
-    };
-    if (!data.success)
-      throw new Error(`Token create failed: ${data.message ?? "unknown"}`);
   }
 
   async testModelsWithKey(

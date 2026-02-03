@@ -5,6 +5,9 @@
     "userId": 1
   },
   "blacklist": ["kiro", "nsfw"],
+  "modelMapping": {
+    "claude-sonnet-4-5-20250929-complex-name": "claude-sonnet-4-5"
+  },
   "providers": [
     {
       "type": "newapi",

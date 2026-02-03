@@ -25,6 +25,7 @@ export interface Config {
   target: NewApiConfig;
   providers: AnyProviderConfig[];
   blacklist?: string[];
+  modelMapping?: Record<string, string>;
 }
 
 // ============ Reports ============
