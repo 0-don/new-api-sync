@@ -3,12 +3,12 @@ import type {
   ProviderConfig,
   Sub2ApiProviderConfig,
   SyncReport,
+  SyncState,
 } from "@/lib/types";
+import { processNewApiProvider } from "@/providers/newapi/provider";
+import { processSub2ApiProvider } from "@/providers/sub2api/provider";
 import { consola } from "consola";
-import { processNewApiProvider } from "./newapi-provider";
-import { processSub2ApiProvider } from "./sub2api-provider";
 import { syncToTarget } from "./target-sync";
-import type { SyncState } from "./types";
 
 export class SyncService {
   private state: SyncState = {
@@ -41,7 +41,6 @@ export class SyncService {
         providerConfig as ProviderConfig,
         this.config,
         this.state,
-        report,
       );
       report.providers.push(providerReport);
     }

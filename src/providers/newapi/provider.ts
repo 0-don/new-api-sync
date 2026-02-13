@@ -1,4 +1,3 @@
-import { NewApiClient } from "@/clients/newapi-client";
 import {
   applyModelMapping,
   calculatePriorityBonus,
@@ -13,10 +12,10 @@ import type {
   GroupInfo,
   ProviderConfig,
   ProviderReport,
-  SyncReport,
+  SyncState,
 } from "@/lib/types";
 import { consola } from "consola";
-import type { SyncState } from "./types";
+import { NewApiClient } from "./client";
 
 function groupHasEnabledVendor(group: GroupInfo, enabledVendors: string[]): boolean {
   const vendorSet = new Set(enabledVendors.map((v) => v.toLowerCase()));
@@ -30,7 +29,6 @@ export async function processNewApiProvider(
   providerConfig: ProviderConfig,
   config: Config,
   state: SyncState,
-  report: SyncReport,
 ): Promise<ProviderReport> {
   const providerReport: ProviderReport = {
     name: providerConfig.name,

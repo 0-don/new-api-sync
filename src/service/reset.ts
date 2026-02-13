@@ -1,4 +1,4 @@
-import { NewApiClient } from "@/clients/newapi-client";
+import { NewApiClient } from "@/providers/newapi/client";
 import type { Config, ResetReport } from "@/lib/types";
 import { consola } from "consola";
 

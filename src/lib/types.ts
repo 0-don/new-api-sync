@@ -195,6 +195,13 @@ export interface MergedModel {
   completionRatio: number;
 }
 
+export interface SyncState {
+  mergedGroups: MergedGroup[];
+  mergedModels: Map<string, MergedModel>;
+  modelEndpoints: Map<string, string[]>;
+  channelsToCreate: ChannelSpec[];
+}
+
 // ============ Model Testing ============
 
 export interface TestResult {

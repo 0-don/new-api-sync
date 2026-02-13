@@ -1,4 +1,3 @@
-import { Sub2ApiClient } from "@/clients/sub2api-client";
 import {
   applyModelMapping,
   CHANNEL_TYPES,
@@ -10,9 +9,10 @@ import type {
   Config,
   ProviderReport,
   Sub2ApiProviderConfig,
+  SyncState,
 } from "@/lib/types";
 import { consola } from "consola";
-import type { SyncState } from "./types";
+import { Sub2ApiClient } from "./client";
 
 function platformToChannelType(platform: string): number {
   switch (platform.toLowerCase()) {

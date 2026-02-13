@@ -1,8 +1,7 @@
-import { NewApiClient } from "@/clients/newapi-client";
+import { NewApiClient } from "@/providers/newapi/client";
 import { inferVendorFromModelName } from "@/lib/constants";
-import type { Channel, Config, SyncReport } from "@/lib/types";
+import type { Channel, Config, SyncReport, SyncState } from "@/lib/types";
 import { consola } from "consola";
-import type { SyncState } from "./types";
 
 export async function syncToTarget(
   config: Config,
