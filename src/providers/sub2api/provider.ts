@@ -1,5 +1,6 @@
 import {
   applyModelMapping,
+  calculatePriorityBonus,
   CHANNEL_TYPES,
   isTextModel,
   matchesAnyPattern,
@@ -211,8 +212,12 @@ export async function processSub2ApiProvider(
         continue;
       }
 
+      const dynamicPriority = calculatePriorityBonus(testResult.avgResponseTime);
+      const dynamicWeight = dynamicPriority > 0 ? dynamicPriority : 1;
+      const msStr = testResult.avgResponseTime ? `${Math.round(testResult.avgResponseTime)}ms` : "N/A";
+
       consola.info(
-        `[${providerConfig.name}/${groupInfo.platform}] ${testResult.workingModels.length}/${groupInfo.models.size} models working`,
+        `[${providerConfig.name}/${groupInfo.platform}] ${testResult.workingModels.length}/${groupInfo.models.size} | ${msStr} → +${dynamicPriority}`,
       );
 
       const mappedModels = testResult.workingModels.map((m) =>
@@ -250,8 +255,8 @@ export async function processSub2ApiProvider(
           baseUrl: providerConfig.baseUrl,
           models,
           group: channelName,
-          priority: 100,
-          weight: 100,
+          priority: dynamicPriority,
+          weight: dynamicWeight,
           provider: providerConfig.name,
           remark: channelName,
         });
