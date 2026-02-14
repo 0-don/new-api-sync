@@ -32,7 +32,7 @@ export class SyncService {
       timestamp: new Date(),
     };
 
-    // Process newapi providers first, then sub2api providers last (for price undercutting)
+    // Process newapi providers first, then sub2api providers last
     const newapiProviders = this.config.providers.filter((p) => p.type !== "sub2api");
     const sub2apiProviders = this.config.providers.filter((p) => p.type === "sub2api");
 
@@ -45,6 +45,7 @@ export class SyncService {
       report.providers.push(providerReport);
     }
 
+    // Process sub2api providers last — they undercut newapi prices from state
     for (const providerConfig of sub2apiProviders) {
       const providerReport = await processSub2ApiProvider(
         providerConfig as Sub2ApiProviderConfig,

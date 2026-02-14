@@ -182,14 +182,19 @@ export async function processSub2ApiProvider(
       return providerReport;
     }
 
-    // Snapshot prices from other providers before this provider modifies state
-    const baseGroupRatio = state.mergedGroups.length > 0
-      ? Math.min(...state.mergedGroups.map((g) => g.ratio))
-      : 1;
-    const groupRatio = baseGroupRatio * (1 - discount);
-
-    const baseModelRatios = new Map(state.mergedModels);
-    const ownModels = new Set<string>();
+    // Build model → cheapest newapi group ratio lookup
+    const groupRatioByName = new Map(state.mergedGroups.map(g => [g.name, g.ratio]));
+    const cheapestGroupForModel = new Map<string, number>();
+    for (const ch of state.channelsToCreate) {
+      if (ch.provider === providerConfig.name) continue;
+      const gRatio = groupRatioByName.get(ch.group) ?? 1;
+      for (const model of ch.models) {
+        const existing = cheapestGroupForModel.get(model);
+        if (existing === undefined || gRatio < existing) {
+          cheapestGroupForModel.set(model, gRatio);
+        }
+      }
+    }
 
     // Process each group: test models via group API key, create channel with working models
     let totalModels = 0;
@@ -210,48 +215,55 @@ export async function processSub2ApiProvider(
         `[${providerConfig.name}/${groupInfo.platform}] ${testResult.workingModels.length}/${groupInfo.models.size} models working`,
       );
 
-      const channelName = `${groupInfo.name}-${providerConfig.name}`;
-
       const mappedModels = testResult.workingModels.map((m) =>
         applyModelMapping(m, config.modelMapping),
       );
 
-      // Determine model pricing: undercut other providers' prices, use groupRatio as floor
-      for (const modelName of mappedModels) {
-        if (ownModels.has(modelName)) continue;
-        ownModels.add(modelName);
-
-        const base = baseModelRatios.get(modelName);
-        state.mergedModels.set(modelName, {
-          ratio: base ? base.ratio * (1 - discount) : groupRatio,
-          completionRatio: base ? base.completionRatio * (1 - discount) : groupRatio,
-        });
+      // Group models by their cheapest newapi group ratio so each sub-channel
+      // gets an accurate group ratio for its models
+      const ratioToModels = new Map<number, string[]>();
+      for (const model of mappedModels) {
+        const cheapest = cheapestGroupForModel.get(model) ?? 1;
+        const ratio = cheapest * (1 - discount);
+        // Round to avoid floating point grouping issues
+        const key = Math.round(ratio * 1e6) / 1e6;
+        if (!ratioToModels.has(key)) ratioToModels.set(key, []);
+        ratioToModels.get(key)!.push(model);
       }
 
-      state.mergedGroups.push({
-        name: channelName,
-        ratio: groupRatio,
-        description: `${groupInfo.platform} via ${providerConfig.name}`,
-        provider: providerConfig.name,
-      });
+      let tierIdx = 0;
+      for (const [groupRatio, models] of ratioToModels) {
+        const suffix = ratioToModels.size > 1 ? `-t${tierIdx}` : "";
+        const channelName = `${groupInfo.name}-${providerConfig.name}${suffix}`;
 
-      state.channelsToCreate.push({
-        name: channelName,
-        type: channelType,
-        key: groupInfo.apiKey,
-        baseUrl: providerConfig.baseUrl,
-        models: mappedModels,
-        group: channelName,
-        priority: 100,
-        weight: 100,
-        provider: providerConfig.name,
-        remark: channelName,
-      });
+        state.mergedGroups.push({
+          name: channelName,
+          ratio: groupRatio,
+          description: `${groupInfo.platform} via ${providerConfig.name}`,
+          provider: providerConfig.name,
+        });
+
+        state.channelsToCreate.push({
+          name: channelName,
+          type: channelType,
+          key: groupInfo.apiKey,
+          baseUrl: providerConfig.baseUrl,
+          models,
+          group: channelName,
+          priority: 100,
+          weight: 100,
+          provider: providerConfig.name,
+          remark: channelName,
+        });
+
+        tierIdx++;
+      }
 
       totalModels += testResult.workingModels.length;
       groupsProcessed++;
+      const ratios = [...ratioToModels.keys()].map(r => r.toFixed(4)).join(", ");
       consola.info(
-        `[${providerConfig.name}/${groupInfo.platform}] ${testResult.workingModels.length} models, ratio: ${groupRatio.toFixed(4)} (${(discount * 100).toFixed(0)}% below remote)`,
+        `[${providerConfig.name}/${groupInfo.platform}] ${testResult.workingModels.length} models, ${ratioToModels.size} tier(s): ${ratios} (${(discount * 100).toFixed(0)}% below remote)`,
       );
     }
 
