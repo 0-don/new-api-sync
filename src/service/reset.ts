@@ -44,11 +44,15 @@ export class ResetService {
       if (providerConfig.type === "sub2api") continue;
       const suffix = `-${providerConfig.name}`;
       const client = new NewApiClient(providerConfig);
-      const tokens = await client.listTokens();
-      for (const token of tokens) {
-        if (token.name.endsWith(suffix)) {
-          if (await client.deleteToken(token.id)) report.tokens++;
+      try {
+        const tokens = await client.listTokens();
+        for (const token of tokens) {
+          if (token.name.endsWith(suffix)) {
+            if (await client.deleteToken(token.id)) report.tokens++;
+          }
         }
+      } catch (error) {
+        consola.warn(`[${providerConfig.name}] Failed to clean tokens, skipping: ${error instanceof Error ? error.message : error}`);
       }
     }
 
