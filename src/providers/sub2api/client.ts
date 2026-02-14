@@ -18,7 +18,7 @@ interface PaginatedData<T> {
 
 export class Sub2ApiClient {
   private baseUrl: string;
-  private adminApiKey: string;
+  private adminApiKey?: string;
   private name: string;
 
   constructor(config: Sub2ApiProviderConfig) {
@@ -29,7 +29,7 @@ export class Sub2ApiClient {
 
   private get adminHeaders(): Record<string, string> {
     return {
-      "x-api-key": this.adminApiKey,
+      "x-api-key": this.adminApiKey ?? "",
       "Content-Type": "application/json",
     };
   }
@@ -177,5 +177,29 @@ export class Sub2ApiClient {
 
     const activeKey = data.items.find((k) => k.status === "active");
     return activeKey?.key ?? null;
+  }
+
+  async listGatewayModels(apiKey: string, platform: string): Promise<string[]> {
+    const isGemini = platform === "gemini";
+    const endpoint = isGemini ? "/v1beta/models" : "/v1/models";
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${apiKey}`,
+    };
+
+    const response = await withRetry(async () => {
+      const res = await fetch(`${this.baseUrl}${endpoint}`, { headers });
+      if (!res.ok) throw new Error(`Failed to list models: ${res.status}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    });
+
+    if (isGemini) {
+      const models = (response.models ?? []) as Array<{ name?: string }>;
+      return models
+        .map((m) => (m.name ?? "").replace(/^models\//, ""))
+        .filter(Boolean);
+    }
+
+    const data = (response.data ?? []) as Array<{ id?: string }>;
+    return data.map((m) => m.id ?? "").filter(Boolean);
   }
 }

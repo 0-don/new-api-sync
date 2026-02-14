@@ -18,11 +18,18 @@ export interface ProviderConfig extends BaseProviderConfig {
   type?: "newapi";
 }
 
+export interface Sub2ApiGroupConfig {
+  key: string;
+  platform: string;
+  name?: string;
+}
+
 export interface Sub2ApiProviderConfig {
   type: "sub2api";
   name: string;
   baseUrl: string;
-  adminApiKey: string;
+  adminApiKey?: string;
+  groups?: Sub2ApiGroupConfig[];
   enabledVendors?: string[];
   enabledModels?: string[];
   priceDiscount?: number;

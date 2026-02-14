@@ -33,6 +33,128 @@ const VENDOR_TO_PLATFORMS: Record<string, string[]> = {
   openai: ["openai"],
 };
 
+interface ResolvedGroup {
+  name: string;
+  platform: string;
+  apiKey: string;
+  models: Set<string>;
+}
+
+function filterModels(
+  modelIds: string[],
+  config: Config,
+  providerConfig: Sub2ApiProviderConfig,
+): string[] {
+  return modelIds.filter((id) => {
+    if (!isTextModel(id)) return false;
+    if (matchesBlacklist(id, config.blacklist)) return false;
+    if (providerConfig.enabledModels?.length) {
+      if (!matchesAnyPattern(id, providerConfig.enabledModels)) return false;
+    }
+    return true;
+  });
+}
+
+async function resolveViaAdmin(
+  client: Sub2ApiClient,
+  providerConfig: Sub2ApiProviderConfig,
+  config: Config,
+): Promise<ResolvedGroup[]> {
+  // Fetch all active groups, filtered by enabledVendors
+  const allGroups = await client.listGroups();
+  let activeGroups = allGroups.filter((g) => g.status === "active");
+
+  if (providerConfig.enabledVendors?.length) {
+    const enabledPlatforms = new Set(
+      providerConfig.enabledVendors.flatMap((v) => VENDOR_TO_PLATFORMS[v.toLowerCase()] ?? [v.toLowerCase()]),
+    );
+    activeGroups = activeGroups.filter((g) => enabledPlatforms.has(g.platform.toLowerCase()));
+  }
+
+  if (activeGroups.length === 0) return [];
+
+  // Resolve API key for each group
+  const groupKeys = new Map<number, { name: string; platform: string; apiKey: string }>();
+  for (const group of activeGroups) {
+    const apiKey = await client.getGroupApiKey(group.id);
+    if (!apiKey) {
+      consola.warn(`[${providerConfig.name}] No API key for group "${group.name}", skipping`);
+      continue;
+    }
+    groupKeys.set(group.id, {
+      name: group.name,
+      platform: group.platform.toLowerCase(),
+      apiKey,
+    });
+  }
+
+  if (groupKeys.size === 0) return [];
+  consola.info(`[${providerConfig.name}] ${groupKeys.size} groups with API keys`);
+
+  // Fetch models from all active accounts, grouped by platform
+  const accounts = await client.listAccounts();
+  const activeAccounts = accounts.filter((a) => a.status === "active");
+  consola.info(`[${providerConfig.name}] ${activeAccounts.length}/${accounts.length} active accounts`);
+
+  const platformModels = new Map<string, Set<string>>();
+  for (const account of activeAccounts) {
+    const platform = account.platform.toLowerCase();
+    if (!platformModels.has(platform)) platformModels.set(platform, new Set());
+    const accountModels = await client.getAccountModels(account.id);
+    for (const id of filterModels(accountModels.map((m) => m.id.replace(/^models\//, "")), config, providerConfig)) {
+      platformModels.get(platform)!.add(id);
+    }
+  }
+
+  // Combine into resolved groups
+  const resolved: ResolvedGroup[] = [];
+  for (const [, info] of groupKeys) {
+    const models = platformModels.get(info.platform);
+    if (!models || models.size === 0) continue;
+    resolved.push({ ...info, models });
+  }
+  return resolved;
+}
+
+async function resolveViaGroups(
+  client: Sub2ApiClient,
+  providerConfig: Sub2ApiProviderConfig,
+  config: Config,
+): Promise<ResolvedGroup[]> {
+  const groups = providerConfig.groups ?? [];
+  if (groups.length === 0) return [];
+
+  const resolved: ResolvedGroup[] = [];
+  for (const group of groups) {
+    const platform = group.platform.toLowerCase();
+
+    // Filter by enabledVendors if specified
+    if (providerConfig.enabledVendors?.length) {
+      const enabledPlatforms = new Set(
+        providerConfig.enabledVendors.flatMap((v) => VENDOR_TO_PLATFORMS[v.toLowerCase()] ?? [v.toLowerCase()]),
+      );
+      if (!enabledPlatforms.has(platform)) continue;
+    }
+
+    const modelIds = await client.listGatewayModels(group.key, platform);
+    const filtered = filterModels(modelIds, config, providerConfig);
+    if (filtered.length === 0) {
+      consola.warn(`[${providerConfig.name}] No models for group "${group.name ?? platform}"`);
+      continue;
+    }
+
+    resolved.push({
+      name: group.name ?? platform,
+      platform,
+      apiKey: group.key,
+      models: new Set(filtered),
+    });
+  }
+
+  consola.info(`[${providerConfig.name}] ${resolved.length} groups with models`);
+  return resolved;
+}
+
 export async function processSub2ApiProvider(
   providerConfig: Sub2ApiProviderConfig,
   config: Config,
@@ -50,96 +172,36 @@ export async function processSub2ApiProvider(
     const client = new Sub2ApiClient(providerConfig);
     const discount = providerConfig.priceDiscount ?? 0.1;
 
-    // Fetch all active groups, filtered by enabledVendors
-    const allGroups = await client.listGroups();
-    let activeGroups = allGroups.filter((g) => g.status === "active");
+    // Resolve groups: admin mode or explicit groups mode
+    const resolvedGroups = providerConfig.adminApiKey
+      ? await resolveViaAdmin(client, providerConfig, config)
+      : await resolveViaGroups(client, providerConfig, config);
 
-    if (providerConfig.enabledVendors?.length) {
-      const enabledPlatforms = new Set(
-        providerConfig.enabledVendors.flatMap((v) => VENDOR_TO_PLATFORMS[v.toLowerCase()] ?? [v.toLowerCase()]),
-      );
-      activeGroups = activeGroups.filter((g) => enabledPlatforms.has(g.platform.toLowerCase()));
-    }
-
-    if (activeGroups.length === 0) {
-      providerReport.error = "No active groups on sub2api";
+    if (resolvedGroups.length === 0) {
+      providerReport.error = "No groups with models found";
       return providerReport;
-    }
-
-    // Resolve API key for each group
-    const groupKeys = new Map<number, { name: string; platform: string; apiKey: string }>();
-    for (const group of activeGroups) {
-      const apiKey = await client.getGroupApiKey(group.id);
-      if (!apiKey) {
-        consola.warn(`[${providerConfig.name}] No API key for group "${group.name}", skipping`);
-        continue;
-      }
-      groupKeys.set(group.id, {
-        name: group.name,
-        platform: group.platform.toLowerCase(),
-        apiKey,
-      });
-    }
-
-    if (groupKeys.size === 0) {
-      providerReport.error = "No groups with active API keys";
-      return providerReport;
-    }
-    consola.info(`[${providerConfig.name}] ${groupKeys.size} groups with API keys`);
-
-    // Fetch all accounts to collect available models per platform
-    const accounts = await client.listAccounts();
-    const activeAccounts = accounts.filter((a) => a.status === "active");
-    consola.info(
-      `[${providerConfig.name}] ${activeAccounts.length}/${accounts.length} active accounts`,
-    );
-
-    // Collect models from all active accounts, grouped by platform
-    const platformModels = new Map<string, Set<string>>();
-    for (const account of activeAccounts) {
-      const platform = account.platform.toLowerCase();
-      if (!platformModels.has(platform)) {
-        platformModels.set(platform, new Set());
-      }
-      const accountModels = await client.getAccountModels(account.id);
-      for (const model of accountModels) {
-        const modelId = model.id.replace(/^models\//, "");
-        if (!isTextModel(modelId)) continue;
-        if (matchesBlacklist(modelId, config.blacklist)) continue;
-        if (providerConfig.enabledModels?.length) {
-          if (!matchesAnyPattern(modelId, providerConfig.enabledModels)) continue;
-        }
-        platformModels.get(platform)!.add(modelId);
-      }
     }
 
     // Process each group: test models via group API key, create channel with working models
     let totalModels = 0;
     let groupsProcessed = 0;
 
-    for (const [, groupInfo] of groupKeys) {
-      const candidateModels = platformModels.get(groupInfo.platform);
-      if (!candidateModels || candidateModels.size === 0) {
-        consola.warn(`[${providerConfig.name}] No models for group "${groupInfo.name}"`);
-        continue;
-      }
-
-      // Test each model via the group API key
+    for (const groupInfo of resolvedGroups) {
       const channelType = platformToChannelType(groupInfo.platform);
       const useResponsesAPI = groupInfo.platform === "openai";
       const tester = new ModelTester(providerConfig.baseUrl, groupInfo.apiKey);
-      const testResult = await tester.testModels([...candidateModels], channelType, useResponsesAPI);
+      const testResult = await tester.testModels([...groupInfo.models], channelType, useResponsesAPI);
 
       if (testResult.workingModels.length === 0) {
-        consola.warn(`[${providerConfig.name}] No working models for group "${groupInfo.name}" (0/${candidateModels.size} passed)`);
+        consola.warn(`[${providerConfig.name}] No working models for group "${groupInfo.name}" (0/${groupInfo.models.size} passed)`);
         continue;
       }
 
       consola.info(
-        `[${providerConfig.name}/${groupInfo.platform}] ${testResult.workingModels.length}/${candidateModels.size} models working`,
+        `[${providerConfig.name}/${groupInfo.platform}] ${testResult.workingModels.length}/${groupInfo.models.size} models working`,
       );
 
-      const channelName = `${providerConfig.name}-${groupInfo.platform}`;
+      const channelName = `${groupInfo.name}-${providerConfig.name}`;
 
       const mappedModels = testResult.workingModels.map((m) =>
         applyModelMapping(m, config.modelMapping),
@@ -183,7 +245,7 @@ export async function processSub2ApiProvider(
         priority: 100,
         weight: 100,
         provider: providerConfig.name,
-        remark: `${providerConfig.name}-${groupInfo.platform}`,
+        remark: channelName,
       });
 
       totalModels += testResult.workingModels.length;

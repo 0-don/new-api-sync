@@ -36,14 +36,17 @@ bun reset                             # delete all synced data
 
 ### sub2api Provider (`type: "sub2api"`)
 
-| Field            | Required | Description                                             |
-| ---------------- | -------- | ------------------------------------------------------- |
-| `name`           | yes      | Unique identifier, used as channel tag                  |
-| `baseUrl`        | yes      | Sub2API instance URL                                    |
-| `adminApiKey`    | yes      | Admin API key                                           |
-| `enabledVendors` |          | Filter by vendor: `anthropic`, `openai`, `google`       |
-| `enabledModels`  |          | Glob patterns: `["claude-*-4-5*", "gpt-5*"]`           |
-| `priceDiscount`  |          | Undercut remote prices (e.g. `0.1` = 10% cheaper)      |
+Provide either `adminApiKey` (auto-discovers groups) or `groups` (explicit group API keys).
+
+| Field            | Required | Description                                                          |
+| ---------------- | -------- | -------------------------------------------------------------------- |
+| `name`           | yes      | Unique identifier, used as channel tag                               |
+| `baseUrl`        | yes      | Sub2API instance URL                                                 |
+| `adminApiKey`    |          | Admin API key — auto-discovers groups, accounts, and models          |
+| `groups`         |          | Explicit groups: `[{ "key": "sk-...", "platform": "anthropic" }]`    |
+| `enabledVendors` |          | Filter by vendor: `anthropic`, `openai`, `google`                    |
+| `enabledModels`  |          | Glob patterns: `["claude-*-4-5*", "gpt-5*"]`                        |
+| `priceDiscount`  |          | Undercut remote prices (e.g. `0.1` = 10% cheaper)                   |
 
 ### Options
 
@@ -59,4 +62,4 @@ bun reset                             # delete all synced data
 4. **Sync** channels, models, and options to target
 5. **Cleanup** stale channels and orphaned models
 
-Channels are named `{group}-{provider}` (new-api) or `{provider}-{platform}` (sub2api). Priority is dynamic: cheapest groups first, faster response times get higher priority.
+Channels are named `{group}-{provider}`. Priority is dynamic: cheapest groups first, faster response times get higher priority.
