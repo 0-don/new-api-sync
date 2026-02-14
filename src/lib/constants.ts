@@ -19,13 +19,62 @@ export const RETRY = {
   MAX_DELAY_MS: 10000,
 } as const;
 
-// Channel type identifiers from new-api
+// Channel type identifiers from new-api (constant/channel.go)
 export const CHANNEL_TYPES = {
+  UNKNOWN: 0,
   OPENAI: 1,
+  MIDJOURNEY: 2,
+  AZURE: 3,
+  OLLAMA: 4,
+  MIDJOURNEY_PLUS: 5,
+  OPENAI_MAX: 6,
+  OH_MY_GPT: 7,
+  CUSTOM: 8,
+  AILS: 9,
+  AI_PROXY: 10,
+  PALM: 11,
+  API2GPT: 12,
+  AIGC2D: 13,
   ANTHROPIC: 14,
+  BAIDU: 15,
+  ZHIPU: 16,
+  ALI: 17,
+  XUNFEI: 18,
+  AI360: 19,
+  OPENROUTER: 20,
+  AI_PROXY_LIBRARY: 21,
+  FAST_GPT: 22,
+  TENCENT: 23,
   GEMINI: 24,
-  JINA_RERANK: 38,
-  OPENAI_VIDEO: 55,
+  MOONSHOT: 25,
+  ZHIPU_V4: 26,
+  PERPLEXITY: 27,
+  LINGYIWANWU: 31,
+  AWS: 33,
+  COHERE: 34,
+  MINIMAX: 35,
+  SUNO_API: 36,
+  DIFY: 37,
+  JINA: 38,
+  CLOUDFLARE: 39,
+  SILICONFLOW: 40,
+  VERTEX_AI: 41,
+  MISTRAL: 42,
+  DEEPSEEK: 43,
+  MOKA_AI: 44,
+  VOLCENGINE: 45,
+  BAIDU_V2: 46,
+  XINFERENCE: 47,
+  XAI: 48,
+  COZE: 49,
+  KLING: 50,
+  JIMENG: 51,
+  VIDU: 52,
+  SUBMODEL: 53,
+  DOUBAO_VIDEO: 54,
+  SORA: 55,
+  REPLICATE: 56,
+  CODEX: 57,
 } as const;
 
 // Priority calculation constants
@@ -34,54 +83,86 @@ export const PRIORITY = {
   RESPONSE_TIME_OFFSET: 100,
 } as const;
 
-// Text endpoint types from new-api (openai, anthropic, gemini, openai-response)
+// Text endpoint types from new-api (constant/endpoint_type.go)
 // Non-text types: image-generation, embeddings, openai-video, jina-rerank
 export const TEXT_ENDPOINT_TYPES = new Set([
   "openai",
   "anthropic",
   "gemini",
   "openai-response",
+  "openai-response-compact",
 ]);
 
 // Patterns that indicate non-text models (image, video, audio, embedding)
 export const NON_TEXT_MODEL_PATTERNS = [
-  "sora",
-  "veo",
-  "video",
-  "image",
+  // Image generation
   "dall-e",
   "dalle",
+  "gpt-image",
+  "imagen",
   "midjourney",
   "stable-diffusion",
   "flux",
-  "imagen",
+  "seedream",
+  "jimeng",
+  // Video generation
+  "sora",
+  "veo",
+  "video",
+  "kling",
+  "vidu",
+  "hailuo",
+  "seedance",
+  "t2v-",
+  "i2v-",
+  "s2v-",
+  "wan2",
+  "wanx",
+  // Audio
   "whisper",
   "tts",
   "speech",
+  "suno",
+  // Embeddings & reranking
   "embedding",
   "embed",
-  "moderation",
   "rerank",
+  "bge-",
+  "m3e-",
+  // Other non-text
+  "image",
+  "moderation",
 ];
 
 // Vendor name patterns for inferring vendor from model name
 export const VENDOR_PATTERNS: Record<string, string[]> = {
-  anthropic: ["claude", "anthropic"],
+  anthropic: ["claude"],
   google: ["gemini", "palm"],
   openai: ["gpt", "o1-", "o3-", "o4-", "chatgpt"],
   deepseek: ["deepseek"],
   xai: ["grok"],
   mistral: ["mistral", "codestral"],
-  meta: ["llama", "meta-"],
-  alibaba: ["qwen"],
+  meta: ["llama"],
+  alibaba: ["qwen", "qwq-"],
+  cohere: ["command-", "c4ai-"],
+  minimax: ["abab", "minimax-"],
+  moonshot: ["moonshot-", "kimi-"],
+  zhipu: ["glm-", "chatglm"],
+  perplexity: ["sonar"],
+  baidu: ["ernie-"],
+  xunfei: ["sparkdesk"],
+  tencent: ["hunyuan-"],
+  bytedance: ["doubao-"],
+  yi: ["yi-"],
+  ai360: ["360gpt"],
 };
 
 /**
  * Infer channel type from endpoint types.
  */
 export function inferChannelType(endpoints: string[]): number {
-  if (endpoints.includes("jina-rerank")) return CHANNEL_TYPES.JINA_RERANK;
-  if (endpoints.includes("openai-video")) return CHANNEL_TYPES.OPENAI_VIDEO;
+  if (endpoints.includes("jina-rerank")) return CHANNEL_TYPES.JINA;
+  if (endpoints.includes("openai-video")) return CHANNEL_TYPES.SORA;
   if (endpoints.includes("anthropic")) return CHANNEL_TYPES.ANTHROPIC;
   if (endpoints.includes("gemini")) return CHANNEL_TYPES.GEMINI;
   return CHANNEL_TYPES.OPENAI;
